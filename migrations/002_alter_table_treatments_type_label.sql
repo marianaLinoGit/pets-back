@@ -1,0 +1,1 @@
+ALTER TABLE pet_treatments ADD COLUMN type_label TEXT;

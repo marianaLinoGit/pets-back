@@ -1,0 +1,8 @@
+name = "pet-api"
+main = "src/index.ts"
+compatibility_date = "2025-10-27"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "pet_api_db"
+database_id = "a80260b0-448b-4d76-8aee-d7c3921f7294"

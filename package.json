@@ -1,0 +1,23 @@
+{
+	"name": "pet-api",
+	"version": "2.0.0",
+	"type": "module",
+	"scripts": {
+		"dev": "wrangler dev",
+		"deploy": "wrangler publish",
+		"migrate:local": "wrangler d1 execute pet_api_db --local --file=./migrations/001_init.sql",
+		"migrate:prod": "wrangler d1 execute pet_api_db --file=./migrations/001_init.sql"
+	},
+	"dependencies": {
+		"@asteasolutions/zod-to-openapi": "7.1.0",
+		"@hono/swagger-ui": "0.5.2",
+		"@hono/zod-validator": "^0.4.1",
+		"hono": "^4.6.7",
+		"zod": "3.25.76"
+	},
+	"devDependencies": {
+		"@cloudflare/workers-types": "^4.20251014.0",
+		"typescript": "^5.6.2",
+		"wrangler": "^4.45.0"
+	}
+}
