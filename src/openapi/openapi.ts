@@ -4,6 +4,7 @@ import {
 	extendZodWithOpenApi,
 } from "@asteasolutions/zod-to-openapi";
 import { z } from "zod";
+import { SettingsGetResponseSchema, SettingsSchema } from "../schemas/settings";
 import {
 	// alerts
 	AlertsQuerySchema,
@@ -173,6 +174,8 @@ export function buildOpenApi(opts?: { serverUrl?: string }) {
 	registry.register("VetVisitCreate", VetVisitCreateSchema);
 	registry.register("AlertsQuery", AlertsQuerySchema);
 	registry.register("AlertsDueResponse", AlertsDueResponseSchema);
+	registry.register("Settings", SettingsSchema);
+	registry.register("SettingsGetResponse", SettingsGetResponseSchema);
 
 	registry.registerPath({
 		method: "get",
@@ -765,6 +768,41 @@ export function buildOpenApi(opts?: { serverUrl?: string }) {
 		},
 	});
 
+	registry.registerPath({
+		method: "get",
+		path: "/settings/me",
+		summary: "Obter minhas configurações",
+		tags: ["Settings"],
+		responses: {
+			200: {
+				description: "OK",
+				content: {
+					"application/json": { schema: SettingsGetResponseSchema },
+				},
+			},
+		},
+	});
+
+	registry.registerPath({
+		method: "put",
+		path: "/settings/me",
+		summary: "Atualizar minhas configurações",
+		tags: ["Settings"],
+		request: {
+			body: {
+				content: { "application/json": { schema: SettingsSchema } },
+			},
+		},
+		responses: {
+			200: {
+				description: "OK",
+				content: {
+					"application/json": { schema: SettingsGetResponseSchema },
+				},
+			},
+		},
+	});
+
 	const TAGS = [
 		{ name: "Pets", description: "Cadastro e consulta de pets" },
 		{ name: "Weights", description: "Pesagens do pet" },
@@ -777,6 +815,7 @@ export function buildOpenApi(opts?: { serverUrl?: string }) {
 			name: "Alerts",
 			description: "Próximos alertas (vacinas, glicemia, etc.)",
 		},
+		{ name: "Settings", description: "Configurações do sistema e conta" },
 	];
 
 	const generator = new OpenApiGeneratorV3(registry.definitions);

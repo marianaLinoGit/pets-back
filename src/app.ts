@@ -6,6 +6,7 @@ import { alerts } from "./routes/alerts";
 import { glycemia } from "./routes/glycemia";
 import { lab } from "./routes/lab";
 import { pets } from "./routes/pets";
+import settings from "./routes/settings";
 import { treatments } from "./routes/treatments";
 import { vaccines } from "./routes/vaccines";
 import { vet } from "./routes/vet";
@@ -24,6 +25,7 @@ app.route("/vaccines", vaccines);
 app.route("/treatments", treatments);
 app.route("/vet", vet);
 app.route("/alerts", alerts);
+app.route("/settings", settings);
 
 app.get("/openapi.json", (c) => c.json(buildOpenApi({ serverUrl: "/" })));
 app.get(

@@ -10,6 +10,11 @@ export const PetCreateSchema = z.object({
 	microchip: z.string().optional().nullable(),
 	birthDate: DateOnly.optional().nullable(),
 	adoptionDate: DateOnly.optional().nullable(),
+	themeColor: z
+		.string()
+		.regex(/^#([0-9a-fA-F]{6})$/, "hex")
+		.nullable()
+		.optional(),
 });
 
 export const PetUpdateSchema = PetCreateSchema.partial();

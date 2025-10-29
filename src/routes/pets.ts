@@ -67,8 +67,9 @@ pets.post("/", zValidator("json", PetCreateSchema), async (c) => {
 	const id = crypto.randomUUID();
 	const ts = nowIso();
 	const r = await c.env.DB.prepare(
-		`INSERT INTO pets (id,name,species,breed,gender,coat,microchip,birth_date,adoption_date,is_active,created_at,updated_at)
-     VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,1,?10,?11)`,
+		`INSERT INTO pets
+		 (id,name,species,breed,gender,coat,microchip,birth_date,adoption_date,theme_color,is_active,created_at,updated_at)
+		 VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,1,?11,?12)`,
 	)
 		.bind(
 			id,
@@ -80,6 +81,7 @@ pets.post("/", zValidator("json", PetCreateSchema), async (c) => {
 			b.microchip ?? null,
 			b.birthDate ?? null,
 			b.adoptionDate ?? null,
+			b.themeColor ?? null,
 			ts,
 			ts,
 		)
@@ -91,19 +93,21 @@ pets.post("/", zValidator("json", PetCreateSchema), async (c) => {
 pets.put("/:id", zValidator("json", PetUpdateSchema), async (c) => {
 	const id = c.req.param("id");
 	const b = c.req.valid("json");
-	const ts = nowIso();
+	const ts = new Date().toISOString();
+
 	const r = await c.env.DB.prepare(
 		`UPDATE pets SET
-       name = COALESCE(?2,name),
-       species = COALESCE(?3,species),
-       breed = COALESCE(?4,breed),
-       gender = COALESCE(?5,gender),
-       coat = COALESCE(?6,coat),
-       microchip = COALESCE(?7,microchip),
-       birth_date = COALESCE(?8,birth_date),
-       adoption_date = COALESCE(?9,adoption_date),
-       updated_at = ?10
-     WHERE id = ?1`,
+		 name = COALESCE(?2,name),
+		 species = COALESCE(?3,species),
+		 breed = COALESCE(?4,breed),
+		 gender = COALESCE(?5,gender),
+		 coat = COALESCE(?6,coat),
+		 microchip = COALESCE(?7,microchip),
+		 birth_date = COALESCE(?8,birth_date),
+		 adoption_date = COALESCE(?9,adoption_date),
+		 theme_color = COALESCE(?10,theme_color),
+		 updated_at = ?11
+	   WHERE id = ?1`,
 	)
 		.bind(
 			id,
@@ -115,9 +119,11 @@ pets.put("/:id", zValidator("json", PetUpdateSchema), async (c) => {
 			b.microchip ?? null,
 			b.birthDate ?? null,
 			b.adoptionDate ?? null,
+			b.themeColor ?? null,
 			ts,
 		)
 		.run();
+
 	if (!r.success) return c.json({ updated: false }, 500);
 	return c.json({ updated: true });
 });
