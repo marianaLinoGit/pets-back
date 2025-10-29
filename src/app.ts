@@ -1,7 +1,7 @@
 import { swaggerUI } from "@hono/swagger-ui";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { buildOpenApi } from "./openapi";
+import { buildOpenApi } from "./openapi/openapi";
 import { alerts } from "./routes/alerts";
 import { glycemia } from "./routes/glycemia";
 import { lab } from "./routes/lab";
@@ -26,6 +26,13 @@ app.route("/vet", vet);
 app.route("/alerts", alerts);
 
 app.get("/openapi.json", (c) => c.json(buildOpenApi({ serverUrl: "/" })));
-app.get("/docs", swaggerUI({ url: "/openapi.json" }));
+app.get(
+	"/docs",
+	swaggerUI({
+		url: "/openapi.json",
+		docExpansion: "list",
+		deepLinking: true,
+	}),
+);
 
 export default app;

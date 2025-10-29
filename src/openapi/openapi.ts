@@ -6,7 +6,6 @@ import {
 import { z } from "zod";
 import {
 	// alerts
-	AlertsDueResponseSchema,
 	AlertsQuerySchema,
 	// glycemia
 	GlyPointExpectedUpdateSchema,
@@ -26,9 +25,7 @@ import {
 	VaccineTypeCreateSchema,
 	// vets
 	VetVisitCreateSchema,
-	// peso pet
-	WeightCreateBodySchema,
-} from "./schemas";
+} from "./../schemas";
 
 extendZodWithOpenApi(z);
 
@@ -180,6 +177,7 @@ export function buildOpenApi(opts?: { serverUrl?: string }) {
 	registry.registerPath({
 		method: "get",
 		path: "/pets",
+		tags: ["Pets"],
 		summary: "Lista pets",
 		request: {
 			query: z.object({
@@ -203,7 +201,8 @@ export function buildOpenApi(opts?: { serverUrl?: string }) {
 	registry.registerPath({
 		method: "post",
 		path: "/pets",
-		summary: "Cria pet",
+		tags: ["Pets"],
+		summary: "Cadastra pet",
 		request: {
 			body: {
 				content: { "application/json": { schema: PetCreateSchema } },
@@ -224,6 +223,7 @@ export function buildOpenApi(opts?: { serverUrl?: string }) {
 	registry.registerPath({
 		method: "get",
 		path: "/pets/{id}",
+		tags: ["Pets"],
 		summary: "Obtém pet por id",
 		request: { params: z.object({ id: z.string() }) },
 		responses: {
@@ -238,6 +238,7 @@ export function buildOpenApi(opts?: { serverUrl?: string }) {
 	registry.registerPath({
 		method: "put",
 		path: "/pets/{id}",
+		tags: ["Pets"],
 		summary: "Atualiza pet",
 		request: {
 			params: z.object({ id: z.string() }),
@@ -261,6 +262,7 @@ export function buildOpenApi(opts?: { serverUrl?: string }) {
 	registry.registerPath({
 		method: "delete",
 		path: "/pets/{id}",
+		tags: ["Pets"],
 		summary: "Exclui pet",
 		request: { params: z.object({ id: z.string() }) },
 		responses: {
@@ -279,6 +281,7 @@ export function buildOpenApi(opts?: { serverUrl?: string }) {
 	registry.registerPath({
 		method: "get",
 		path: "/pets/{id}/weights",
+		tags: ["Weights"],
 		summary: "Lista pesos do pet",
 		request: {
 			params: z.object({ id: z.string() }),
@@ -300,6 +303,7 @@ export function buildOpenApi(opts?: { serverUrl?: string }) {
 	registry.registerPath({
 		method: "post",
 		path: "/pets/{id}/weights",
+		tags: ["Weights"],
 		summary: "Insere peso do pet",
 		request: {
 			params: z.object({ id: z.string() }),
@@ -324,7 +328,8 @@ export function buildOpenApi(opts?: { serverUrl?: string }) {
 	registry.registerPath({
 		method: "get",
 		path: "/glycemia/sessions",
-		summary: "Lista sessões de curva glicêmica",
+		tags: ["Glycemia"],
+		summary: "Lista de medições de curva glicêmica",
 		request: {
 			query: z.object({
 				petId: z.string().optional(),
@@ -345,7 +350,8 @@ export function buildOpenApi(opts?: { serverUrl?: string }) {
 	registry.registerPath({
 		method: "post",
 		path: "/glycemia/sessions",
-		summary: "Cria sessão de curva glicêmica",
+		tags: ["Glycemia"],
+		summary: "Cria medição de curva glicêmica",
 		request: {
 			body: {
 				content: {
@@ -368,7 +374,8 @@ export function buildOpenApi(opts?: { serverUrl?: string }) {
 	registry.registerPath({
 		method: "get",
 		path: "/glycemia/sessions/{id}",
-		summary: "Detalha sessão",
+		tags: ["Glycemia"],
+		summary: "Detalha medição da curva glicêmica",
 		request: { params: z.object({ id: z.string() }) },
 		responses: {
 			200: {
@@ -389,7 +396,8 @@ export function buildOpenApi(opts?: { serverUrl?: string }) {
 	registry.registerPath({
 		method: "put",
 		path: "/glycemia/sessions/{id}",
-		summary: "Atualiza sessão",
+		tags: ["Glycemia"],
+		summary: "Atualiza medição de curva glicêmica",
 		request: {
 			params: z.object({ id: z.string() }),
 			body: {
@@ -414,6 +422,7 @@ export function buildOpenApi(opts?: { serverUrl?: string }) {
 	registry.registerPath({
 		method: "put",
 		path: "/glycemia/sessions/{id}/points/{idx}/expected",
+		tags: ["Glycemia"],
 		summary: "Atualiza horário esperado",
 		request: {
 			params: z.object({ id: z.string(), idx: z.string() }),
@@ -441,7 +450,8 @@ export function buildOpenApi(opts?: { serverUrl?: string }) {
 	registry.registerPath({
 		method: "put",
 		path: "/glycemia/sessions/{id}/points/{idx}",
-		summary: "Atualiza ponto",
+		tags: ["Glycemia"],
+		summary: "Atualiza medição específica",
 		request: {
 			params: z.object({ id: z.string(), idx: z.string() }),
 			body: {
@@ -466,7 +476,8 @@ export function buildOpenApi(opts?: { serverUrl?: string }) {
 	registry.registerPath({
 		method: "delete",
 		path: "/glycemia/sessions/{id}",
-		summary: "Exclui sessão e medições",
+		tags: ["Glycemia"],
+		summary: "Exclui medição completa",
 		request: { params: z.object({ id: z.string() }) },
 		responses: {
 			200: {
@@ -487,6 +498,7 @@ export function buildOpenApi(opts?: { serverUrl?: string }) {
 	registry.registerPath({
 		method: "post",
 		path: "/lab/test-types",
+		tags: ["Lab"],
 		summary: "Cria tipo de exame",
 		request: {
 			body: {
@@ -510,6 +522,7 @@ export function buildOpenApi(opts?: { serverUrl?: string }) {
 	registry.registerPath({
 		method: "get",
 		path: "/lab/test-types",
+		tags: ["Lab"],
 		summary: "Lista tipos de exame",
 		responses: {
 			200: {
@@ -522,6 +535,7 @@ export function buildOpenApi(opts?: { serverUrl?: string }) {
 	registry.registerPath({
 		method: "post",
 		path: "/lab/results",
+		tags: ["Lab"],
 		summary: "Cria resultado de exame",
 		request: {
 			body: {
@@ -545,6 +559,7 @@ export function buildOpenApi(opts?: { serverUrl?: string }) {
 	registry.registerPath({
 		method: "get",
 		path: "/lab/results",
+		tags: ["Lab"],
 		summary: "Lista resultados de exame por pet",
 		request: {
 			query: z.object({
@@ -564,6 +579,7 @@ export function buildOpenApi(opts?: { serverUrl?: string }) {
 	registry.registerPath({
 		method: "post",
 		path: "/vaccines/types",
+		tags: ["Vaccines"],
 		summary: "Cria tipo de vacina",
 		request: {
 			body: {
@@ -587,6 +603,7 @@ export function buildOpenApi(opts?: { serverUrl?: string }) {
 	registry.registerPath({
 		method: "get",
 		path: "/vaccines/types",
+		tags: ["Vaccines"],
 		summary: "Lista tipos de vacina",
 		responses: {
 			200: {
@@ -601,6 +618,7 @@ export function buildOpenApi(opts?: { serverUrl?: string }) {
 	registry.registerPath({
 		method: "post",
 		path: "/vaccines/applications",
+		tags: ["Vaccines"],
 		summary: "Registra aplicação de vacina",
 		request: {
 			body: {
@@ -626,6 +644,7 @@ export function buildOpenApi(opts?: { serverUrl?: string }) {
 	registry.registerPath({
 		method: "get",
 		path: "/vaccines/applications",
+		tags: ["Vaccines"],
 		summary: "Lista aplicações de vacina por pet",
 		request: {
 			query: z.object({
@@ -649,6 +668,7 @@ export function buildOpenApi(opts?: { serverUrl?: string }) {
 	registry.registerPath({
 		method: "post",
 		path: "/treatments",
+		tags: ["Treatments"],
 		summary: "Cria tratamento",
 		request: {
 			body: {
@@ -672,6 +692,7 @@ export function buildOpenApi(opts?: { serverUrl?: string }) {
 	registry.registerPath({
 		method: "get",
 		path: "/treatments",
+		tags: ["Treatments"],
 		summary: "Lista tratamentos",
 		request: { query: z.object({ petId: z.string().optional() }) },
 		responses: {
@@ -687,6 +708,7 @@ export function buildOpenApi(opts?: { serverUrl?: string }) {
 	registry.registerPath({
 		method: "post",
 		path: "/vet/visits",
+		tags: ["Vet"],
 		summary: "Registra visita ao veterinário",
 		request: {
 			body: {
@@ -710,6 +732,7 @@ export function buildOpenApi(opts?: { serverUrl?: string }) {
 	registry.registerPath({
 		method: "get",
 		path: "/vet/visits",
+		tags: ["Vet"],
 		summary: "Lista visitas",
 		request: { query: z.object({ petId: z.string().optional() }) },
 		responses: {
@@ -723,6 +746,7 @@ export function buildOpenApi(opts?: { serverUrl?: string }) {
 	registry.registerPath({
 		method: "get",
 		path: "/alerts/due",
+		tags: ["Alerts"],
 		summary: "Alertas próximos",
 		request: {
 			query: z.object({
@@ -741,10 +765,26 @@ export function buildOpenApi(opts?: { serverUrl?: string }) {
 		},
 	});
 
+	const TAGS = [
+		{ name: "Pets", description: "Cadastro e consulta de pets" },
+		{ name: "Weights", description: "Pesagens do pet" },
+		{ name: "Glycemia", description: "Curvas glicêmicas" },
+		{ name: "Lab", description: "Exames laboratoriais" },
+		{ name: "Vaccines", description: "Tipos e aplicações de vacinas" },
+		{ name: "Treatments", description: "Tratamentos preventivos e outros" },
+		{ name: "Vet", description: "Consultas/visitas ao veterinário" },
+		{
+			name: "Alerts",
+			description: "Próximos alertas (vacinas, glicemia, etc.)",
+		},
+	];
+
 	const generator = new OpenApiGeneratorV3(registry.definitions);
+
 	return generator.generateDocument({
 		openapi: "3.0.3",
 		info: { title: "Pet API", version: "1.0.0" },
 		servers: [{ url: serverUrl }],
+		tags: TAGS,
 	});
 }
