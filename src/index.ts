@@ -12,6 +12,11 @@ import {
 import { swaggerUI } from "@hono/swagger-ui";
 import { z } from "zod";
 import {
+	PetCreateSchema,
+	PetsListQuerySchema,
+	PetUpdateSchema,
+} from "./openapi";
+import {
 	alertsQuerySchema,
 	glycemiaPointExpectedUpdateSchema,
 	glycemiaPointUpdateSchema,
@@ -117,6 +122,10 @@ const requireApiKey = async (c: any, next: any) => {
 	await next();
 };
 
+const glycemiaSessionIdParams = z.object({
+	id: z.string(),
+});
+
 // ────────────────────────────────────────────────────────────────────────────────
 // Health
 // ────────────────────────────────────────────────────────────────────────────────
@@ -130,18 +139,44 @@ app.get("/health", (c) =>
 // ────────────────────────────────────────────────────────────────────────────────
 // Pets
 // ────────────────────────────────────────────────────────────────────────────────
-app.get("/pets", async (c) => {
+app.get("/pets", zValidator("query", PetsListQuerySchema), async (c) => {
 	const q = c.req.query("q") || "";
-	const limit = Math.min(int(c.req.query("limit"), 50), 200);
-	const offset = int(c.req.query("offset"), 0);
-	const stmt = q
-		? c.env.DB.prepare(
-				"SELECT * FROM pets WHERE name LIKE ?1 ORDER BY created_at DESC LIMIT ?2 OFFSET ?3",
-		  ).bind(`%${q}%`, limit, offset)
-		: c.env.DB.prepare(
-				"SELECT * FROM pets ORDER BY created_at DESC LIMIT ?1 OFFSET ?2",
-		  ).bind(limit, offset);
-	const r = await stmt.all();
+	const species = c.req.query("species") || "";
+	const gender = c.req.query("gender") || "";
+	const sortBy = (c.req.query("sortBy") || "name") as
+		| "name"
+		| "birth_date"
+		| "adoption_date";
+	const sortDir = (c.req.query("sortDir") || "asc") as "asc" | "desc";
+
+	const where: string[] = [];
+	const bind: any[] = [];
+	if (q) {
+		where.push("LOWER(name) LIKE LOWER('%' || ? || '%')");
+		bind.push(q);
+	}
+	if (species) {
+		where.push("species = ?");
+		bind.push(species);
+	}
+	if (gender) {
+		where.push("gender = ?");
+		bind.push(gender);
+	}
+
+	const whereSql = where.length ? "WHERE " + where.join(" AND ") : "";
+	const orderCol =
+		sortBy === "name"
+			? "name"
+			: sortBy === "birth_date"
+			? "birth_date"
+			: "adoption_date";
+	const orderSql = `ORDER BY ${orderCol} IS NULL, ${orderCol} ${sortDir.toUpperCase()}`;
+
+	const sql = `SELECT * FROM pets ${whereSql} ${orderSql}`;
+	const r = await c.env.DB.prepare(sql)
+		.bind(...bind)
+		.all();
 	return c.json(r.results || []);
 });
 
@@ -163,95 +198,75 @@ app.get("/pets/:id", async (c) => {
 app.post(
 	"/pets",
 	requireApiKey,
-	zValidator("json", petCreateSchema),
+	zValidator("json", PetCreateSchema),
 	async (c) => {
-		const body = await c.req.json();
+		const b = await c.req.json();
 		const id = crypto.randomUUID();
-		const ts = nowIso();
+		const ts = new Date().toISOString();
+
 		const r = await c.env.DB.prepare(
-			"INSERT INTO pets (id,name,species,breed,birth_year,birth_month,birth_day,gender,coat,microchip,adoption_date,created_at,updated_at) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13)",
+			`INSERT INTO pets
+		 (id,name,species,breed,gender,coat,microchip,birth_date,adoption_date,is_active,created_at,updated_at)
+		 VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,1,?10,?11)`,
 		)
 			.bind(
 				id,
-				body.name,
-				body.species,
-				body.breed ?? null,
-				body.birthYear ?? null,
-				body.birthMonth ?? null,
-				body.birthDay ?? null,
-				body.gender ?? null,
-				body.coat ?? null,
-				body.microchip ?? null,
-				body.adoptionDate ?? null,
+				b.name,
+				b.species,
+				b.breed ?? null,
+				b.gender ?? null,
+				b.coat ?? null,
+				b.microchip ?? null,
+				b.birthDate ?? null,
+				b.adoptionDate ?? null,
 				ts,
 				ts,
 			)
 			.run();
-		return c.json(
-			{
-				id,
-			},
-			r.success ? 201 : 500,
-		);
+
+		if (!r.success) return c.json({ error: "db_error" }, 500);
+		return c.json({ id }, 201);
 	},
 );
 
 app.put(
 	"/pets/:id",
 	requireApiKey,
-	zValidator("json", petUpdateSchema),
+	zValidator("json", PetUpdateSchema),
 	async (c) => {
 		const id = c.req.param("id");
-		const body = await c.req.json();
-		const ts = nowIso();
-
-		const exists = await c.env.DB.prepare(
-			"SELECT id FROM pets WHERE id = ?1",
-		)
-			.bind(id)
-			.all();
-		if (!exists.results || exists.results.length === 0)
-			return c.json(
-				{
-					error: "not_found",
-				},
-				404,
-			);
+		const b = await c.req.json();
+		const ts = new Date().toISOString();
 
 		const r = await c.env.DB.prepare(
 			`UPDATE pets SET
-		  name = COALESCE(?2, name),
-		  species = COALESCE(?3, species),
-		  breed = COALESCE(?4, breed),
-		  birth_year = COALESCE(?5, birth_year),
-		  birth_month = COALESCE(?6, birth_month),
-		  birth_day = COALESCE(?7, birth_day),
-		  gender = COALESCE(?8, gender),
-		  coat = COALESCE(?9, coat),
-		  microchip = COALESCE(?10, microchip),
-		  adoption_date = COALESCE(?11, adoption_date),
-		  updated_at = ?12
+		   name = COALESCE(?2,name),
+		   species = COALESCE(?3,species),
+		   breed = COALESCE(?4,breed),
+		   gender = COALESCE(?5,gender),
+		   coat = COALESCE(?6,coat),
+		   microchip = COALESCE(?7,microchip),
+		   birth_date = COALESCE(?8,birth_date),
+		   adoption_date = COALESCE(?9,adoption_date),
+		   updated_at = ?10
 		 WHERE id = ?1`,
 		)
 			.bind(
 				id,
-				body.name ?? null,
-				body.species ?? null,
-				body.breed ?? null,
-				body.birthYear ?? null,
-				body.birthMonth ?? null,
-				body.birthDay ?? null,
-				body.gender ?? null,
-				body.coat ?? null,
-				body.microchip ?? null,
-				body.adoptionDate ?? null,
+				b.name ?? null,
+				b.species ?? null,
+				b.breed ?? null,
+				b.gender ?? null,
+				b.coat ?? null,
+				b.microchip ?? null,
+				b.birthDate ?? null,
+				b.adoptionDate ?? null,
 				ts,
 			)
 			.run();
 
-		return c.json({
-			updated: r.success,
-		});
+		if (!r.success) return c.json({ updated: false }, 500);
+		return c.json({ updated: true });
 	},
 );
 
@@ -472,35 +487,39 @@ app.put(
 			.bind(sid)
 			.all();
 
-		if (!s.results || s.results.length === 0)
+		if (!s.results || s.results.length === 0) {
 			return c.json({ error: "not_found" }, 404);
-
-		const currentDate = (s.results[0] as any).session_date as string;
-		const nextDate = body.sessionDate ?? currentDate;
-
-		if ("sessionDate" in body || "notes" in body) {
-			const r = await c.env.DB.prepare(
-				"UPDATE glycemic_curve_sessions SET session_date = COALESCE(?2, session_date), notes = COALESCE(?3, notes), updated_at = ?4 WHERE id = ?1",
-			)
-				.bind(sid, body.sessionDate ?? null, body.notes ?? null, ts)
-				.run();
-			if (!r.success) return c.json({ updated: false }, 200);
 		}
 
-		if (body.times && body.times.length === 5) {
-			const off = body.offsetMinutes ?? 0;
+		const currentDate = (s.results[0] as any).session_date as string;
+		const sessionDate = body.sessionDate ?? currentDate;
+
+		const up = await c.env.DB.prepare(
+			"UPDATE glycemic_curve_sessions SET session_date = COALESCE(?2, session_date), notes = COALESCE(?3, notes), updated_at = ?4 WHERE id = ?1",
+		)
+			.bind(sid, body.sessionDate ?? null, body.notes ?? null, ts)
+			.run();
+
+		if (!up.success) return c.json({ updated: false }, 200);
+
+		if (body.times) {
+			const warnOffset = body.offsetMinutes;
 			for (let i = 0; i < 5; i++) {
-				const iso = isoFromLocal(nextDate, body.times[i], off);
-				const ur = await c.env.DB.prepare(
+				const expectedAt = isoFromLocal(
+					sessionDate,
+					body.times[i],
+					warnOffset,
+				);
+				const pr = await c.env.DB.prepare(
 					"UPDATE glycemic_curve_points SET expected_at = ?3, updated_at = ?4 WHERE session_id = ?1 AND idx = ?2",
 				)
-					.bind(sid, i + 1, iso, ts)
+					.bind(sid, i + 1, expectedAt, ts)
 					.run();
-				if (!ur.success) return c.json({ error: "db_error" }, 500);
+				if (!pr.success) return c.json({ updated: false }, 200);
 			}
 		}
 
-		return c.json({ updated: true });
+		return c.json({ updated: true }, 200);
 	},
 );
 
@@ -553,7 +572,7 @@ app.put(
 	async (c) => {
 		const sid = c.req.param("id");
 		const idx = parseInt(c.req.param("idx"), 10);
-		const body = await c.req.json();
+		const body = c.req.valid("json"); // <-- aqui
 		const ts = nowIso();
 
 		const ex = await c.env.DB.prepare(
@@ -562,12 +581,7 @@ app.put(
 			.bind(sid, idx)
 			.all();
 		if (!ex.results || ex.results.length === 0)
-			return c.json(
-				{
-					error: "not_found",
-				},
-				404,
-			);
+			return c.json({ error: "not_found" }, 404);
 
 		let measuredAtIso: string | null = body.measuredAt ?? null;
 		if (body.measuredAtTime) {
@@ -577,12 +591,7 @@ app.put(
 				.bind(sid)
 				.all();
 			if (!s.results || s.results.length === 0)
-				return c.json(
-					{
-						error: "session_not_found",
-					},
-					404,
-				);
+				return c.json({ error: "session_not_found" }, 404);
 			const sessionDate = (s.results[0] as any).session_date as string;
 			measuredAtIso = isoFromLocal(
 				sessionDate,
@@ -606,8 +615,35 @@ app.put(
 			)
 			.run();
 
+		return c.json({ updated: r.success });
+	},
+);
+
+app.delete(
+	"/glycemia/sessions/:id",
+	requireApiKey,
+	zValidator("param", glycemiaSessionIdParams),
+	async (c) => {
+		const sid = c.req.param("id");
+		const delPoints = await c.env.DB.prepare(
+			"DELETE FROM glycemic_curve_points WHERE session_id = ?1",
+		)
+			.bind(sid)
+			.run();
+
+		const delSession = await c.env.DB.prepare(
+			"DELETE FROM glycemic_curve_sessions WHERE id = ?1",
+		)
+			.bind(sid)
+			.run();
+
+		const pointsDeleted = delPoints.meta.changes ?? 0;
+		const sessionDeleted = delSession.meta.changes ?? 0;
+
 		return c.json({
-			updated: r.success,
+			deleted: sessionDeleted > 0,
+			pointsDeleted,
+			sessionDeleted,
 		});
 	},
 );

@@ -1,7 +1,7 @@
 import {
-	OpenAPIGenerator,
-	OpenAPIRegistry,
 	extendZodWithOpenApi,
+	OpenApiGeneratorV3,
+	OpenAPIRegistry,
 } from "@asteasolutions/zod-to-openapi";
 import { z } from "zod";
 
@@ -11,27 +11,39 @@ const isoDate = /^\d{4}-\d{2}-\d{2}$/;
 const isoDateTime =
 	/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?(\.\d+)?(Z|[+\-]\d{2}:\d{2})$/;
 const timeHHmm = /^\d{2}:\d{2}$/;
+const DateOnly = z
+	.string()
+	.regex(/^\d{4}-\d{2}-\d{2}$/)
+	.openapi({ format: "date" });
+export const ymd = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "YYYY-MM-DD");
 
-const PetCreateSchema = z.object({
+export const PetCreateSchema = z.object({
 	name: z.string().min(1),
 	species: z.enum(["dog", "cat", "other"]),
 	breed: z.string().optional().nullable(),
-	birthDay: z.number().int().min(1).max(31).optional().nullable(),
-	birthMonth: z.number().int().min(1).max(12).optional().nullable(),
-	birthYear: z.number().int().optional().nullable(),
 	gender: z.enum(["M", "F", "N"]).optional().nullable(),
 	coat: z.string().optional().nullable(),
 	microchip: z.string().optional().nullable(),
-	adoptionDate: z.string().regex(isoDate).optional().nullable(),
+	birthDate: ymd.nullable().optional(),
+	adoptionDate: ymd.nullable().optional(),
 });
 
 const PetSchema = PetCreateSchema.extend({
 	id: z.string(),
 	created_at: z.string().optional(),
 	updated_at: z.string().optional(),
+	is_active: z.boolean().optional(),
 });
 
-const PetUpdateSchema = PetCreateSchema.partial();
+export const PetUpdateSchema = PetCreateSchema.partial();
+
+export const PetsListQuerySchema = z.object({
+	q: z.string().optional(),
+	species: z.enum(["dog", "cat", "other"]).optional(),
+	gender: z.enum(["M", "F", "N"]).optional(),
+	sortBy: z.enum(["name", "birth_date", "adoption_date"]).optional(),
+	sortDir: z.enum(["asc", "desc"]).optional(),
+});
 
 const WeightCreateBodySchema = z.object({
 	weightKg: z.number().nonnegative(),
@@ -102,7 +114,7 @@ const TreatmentSchema = z.object({
 
 const GlySessionCreateByTimesSchema = z.object({
 	petId: z.string(),
-	sessionDate: z.string().regex(isoDate),
+	sessionDate: DateOnly,
 	times: z.array(z.string().regex(timeHHmm)).length(5),
 	warnMinutesBefore: z.number().int().min(1).max(120).optional(),
 	offsetMinutes: z.number().int().min(-720).max(840).optional(),
@@ -121,17 +133,14 @@ const GlySessionCreateByPointsSchema = z.object({
 const GlySessionSchema = z.object({
 	id: z.string(),
 	pet_id: z.string(),
-	session_date: z.string(),
+	session_date: DateOnly,
 	notes: z.string().optional().nullable(),
 	created_at: z.string().optional(),
 	updated_at: z.string().optional(),
 });
 
 const GlySessionUpdateSchema = z.object({
-	sessionDate: z
-		.string()
-		.regex(/^(\d{4})-(\d{2})-(\d{2})$/)
-		.optional(),
+	sessionDate: DateOnly.optional(),
 	notes: z.string().nullable().optional(),
 	times: z
 		.array(z.string().regex(/^(\d{2}):(\d{2})$/))
@@ -172,6 +181,12 @@ const GlyPointUpdateSchema = z.object({
 		.optional(),
 	dosageClicks: z.number().int().min(0).optional(),
 	notes: z.string().optional().nullable(),
+});
+
+const GlyDelResponseSchema = z.object({
+	deleted: z.boolean(),
+	pointsDeleted: z.number().int(),
+	sessionDeleted: z.number().int(),
 });
 
 const AlertsDueResponseSchema = z.object({
@@ -257,8 +272,12 @@ export function buildOpenApi(opts?: { serverUrl?: string }) {
 		request: {
 			query: z.object({
 				q: z.string().optional(),
-				limit: z.number().int().min(1).max(500).optional(),
-				offset: z.number().int().min(0).optional(),
+				species: z.enum(["dog", "cat", "other"]).optional(),
+				gender: z.enum(["M", "F", "N"]).optional(),
+				sortBy: z
+					.enum(["name", "birth_date", "adoption_date"])
+					.optional(),
+				sortDir: z.enum(["asc", "desc"]).optional(),
 			}),
 		},
 		responses: {
@@ -464,7 +483,8 @@ export function buildOpenApi(opts?: { serverUrl?: string }) {
 	registry.registerPath({
 		method: "put",
 		path: "/glycemia/sessions/{id}",
-		summary: "Atualiza dados da sessão e/ou horários esperados",
+		summary:
+			"Atualiza sessão (data, observações e, opcionalmente, horários esperados)",
 		request: {
 			params: z.object({ id: z.string() }),
 			body: {
@@ -478,7 +498,7 @@ export function buildOpenApi(opts?: { serverUrl?: string }) {
 				description: "OK",
 				content: {
 					"application/json": {
-						schema: z.object({ updated: z.boolean().optional() }),
+						schema: z.object({ updated: z.boolean() }),
 					},
 				},
 			},
@@ -535,6 +555,21 @@ export function buildOpenApi(opts?: { serverUrl?: string }) {
 				},
 			},
 			404: { description: "Não encontrado" },
+		},
+	});
+
+	registry.registerPath({
+		method: "delete",
+		path: "/glycemia/sessions/{id}",
+		summary: "Exclui permanentemente a sessão de glicemia e suas medições",
+		request: { params: z.object({ id: z.string() }) },
+		responses: {
+			200: {
+				description: "OK",
+				content: {
+					"application/json": { schema: GlyDelResponseSchema },
+				},
+			},
 		},
 	});
 
@@ -660,7 +695,7 @@ export function buildOpenApi(opts?: { serverUrl?: string }) {
 		},
 	});
 
-	const generator = new OpenAPIGenerator(registry.definitions, "3.0.3");
+	const generator = new OpenApiGeneratorV3(registry.definitions);
 	const doc = generator.generateDocument({
 		openapi: "3.0.3",
 		info: {

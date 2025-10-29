@@ -5,6 +5,7 @@ const isoDateTime =
 	/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?(\.\d+)?(Z|[+\-]\d{2}:\d{2})$/;
 const timeHHmm = /^\d{2}:\d{2}$/;
 const hhmm = /^(\d{2}):(\d{2})$/;
+const dateOnly = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
 export const petCreateSchema = z.object({
 	name: z.string().min(1),
@@ -28,24 +29,18 @@ export const weightCreateSchema = z.object({
 
 export const glycemiaSessionCreateSchema = z.union([
 	z.object({
-		petId: z.string().min(1),
-		sessionDate: z.string().regex(isoDate),
-		times: z.array(z.string().regex(timeHHmm)).length(5),
-		warnMinutesBefore: z.number().int().min(1).max(120).optional(),
-		offsetMinutes: z.number().int().min(-720).max(840).optional(),
-		notes: z.string().optional().nullable(),
+		petId: z.string(),
+		sessionDate: dateOnly,
+		times: z.array(z.string()).length(5),
+		warnMinutesBefore: z.number().int().min(0).max(240).optional(),
+		offsetMinutes: z.number().int().optional(),
+		notes: z.string().nullable().optional(),
 	}),
 	z.object({
-		petId: z.string().min(1),
-		points: z
-			.array(
-				z.object({
-					expectedAt: z.string().regex(isoDateTime),
-				}),
-			)
-			.length(5),
-		warnMinutesBefore: z.number().int().min(1).max(120).optional(),
-		notes: z.string().optional().nullable(),
+		petId: z.string(),
+		points: z.array(z.object({ expectedAt: z.string() })).length(5),
+		warnMinutesBefore: z.number().int().min(0).max(240).optional(),
+		notes: z.string().nullable().optional(),
 	}),
 ]);
 
@@ -68,15 +63,18 @@ export const glycemiaSessionCreateByPointsSchema = z.object({
 export const glycemiaPointUpdateSchema = z.object({
 	glucoseMgDl: z.number().nonnegative().optional(),
 	glucoseStr: z.literal("HI").optional(),
-	measuredAt: z.string().optional(),
-	measuredAtTime: z.string().regex(hhmm).optional(),
-	offsetMinutes: z.number().int().optional(),
-	dosageClicks: z.number().int().nonnegative().optional(),
-	notes: z.string().nullable().optional(),
+	measuredAt: z.string().datetime().optional(),
+	measuredAtTime: z
+		.string()
+		.regex(/^\d{2}:\d{2}$/)
+		.optional(),
+	offsetMinutes: z.number().int().min(-720).max(720).optional(),
+	dosageClicks: z.number().int().min(0).optional(),
+	notes: z.string().max(200).nullable().optional(),
 });
 
 export const glycemiaSessionUpdateSchema = z.object({
-	sessionDate: z.string().regex(isoDate).optional(),
+	sessionDate: dateOnly.optional(),
 	notes: z.string().nullable().optional(),
 	times: z.array(z.string().regex(hhmm)).length(5).optional(),
 	offsetMinutes: z.number().int().optional(),
@@ -94,6 +92,10 @@ export const labTestTypeCreateSchema = z.object({
 	refLow: z.number().optional().nullable(),
 	refHigh: z.number().optional().nullable(),
 	category: z.string().optional().nullable(),
+});
+
+export const glycemiaSessionIdParamsSchema = z.object({
+	id: z.string(),
 });
 
 const labValueSchema = z
