@@ -127,6 +127,28 @@ const GlySessionSchema = z.object({
 	updated_at: z.string().optional(),
 });
 
+const GlySessionUpdateSchema = z.object({
+	sessionDate: z
+		.string()
+		.regex(/^(\d{4})-(\d{2})-(\d{2})$/)
+		.optional(),
+	notes: z.string().nullable().optional(),
+	times: z
+		.array(z.string().regex(/^(\d{2}):(\d{2})$/))
+		.length(5)
+		.optional(),
+	offsetMinutes: z.number().int().optional(),
+});
+
+const GlyPointExpectedUpdateSchema = z.object({
+	expectedTime: z
+		.string()
+		.regex(/^(\d{2}):(\d{2})$/)
+		.optional(),
+	expectedAt: z.string().optional(),
+	offsetMinutes: z.number().int().optional(),
+});
+
 const GlyPointSchema = z.object({
 	id: z.string(),
 	session_id: z.string(),
@@ -217,6 +239,8 @@ export function buildOpenApi(opts?: { serverUrl?: string }) {
 	registry.register("Treatment", TreatmentSchema);
 	registry.register("TreatmentCreate", TreatmentCreateSchema);
 	registry.register("GlySession", GlySessionSchema);
+	registry.register("GlySessionUpdate", GlySessionUpdateSchema);
+	registry.register("GlyPointExpectedUpdate", GlyPointExpectedUpdateSchema);
 	registry.register("GlyPoint", GlyPointSchema);
 	registry.register("GlySessionCreateByTimes", GlySessionCreateByTimesSchema);
 	registry.register(
@@ -430,6 +454,58 @@ export function buildOpenApi(opts?: { serverUrl?: string }) {
 							session: GlySessionSchema,
 							points: z.array(GlyPointSchema),
 						}),
+					},
+				},
+			},
+			404: { description: "Não encontrado" },
+		},
+	});
+
+	registry.registerPath({
+		method: "put",
+		path: "/glycemia/sessions/{id}",
+		summary: "Atualiza dados da sessão e/ou horários esperados",
+		request: {
+			params: z.object({ id: z.string() }),
+			body: {
+				content: {
+					"application/json": { schema: GlySessionUpdateSchema },
+				},
+			},
+		},
+		responses: {
+			200: {
+				description: "OK",
+				content: {
+					"application/json": {
+						schema: z.object({ updated: z.boolean().optional() }),
+					},
+				},
+			},
+			404: { description: "Não encontrado" },
+		},
+	});
+
+	registry.registerPath({
+		method: "put",
+		path: "/glycemia/sessions/{id}/points/{idx}/expected",
+		summary: "Atualiza o horário esperado de um ponto",
+		request: {
+			params: z.object({ id: z.string(), idx: z.string() }),
+			body: {
+				content: {
+					"application/json": {
+						schema: GlyPointExpectedUpdateSchema,
+					},
+				},
+			},
+		},
+		responses: {
+			200: {
+				description: "OK",
+				content: {
+					"application/json": {
+						schema: z.object({ updated: z.boolean() }),
 					},
 				},
 			},
