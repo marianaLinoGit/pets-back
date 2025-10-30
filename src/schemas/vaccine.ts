@@ -1,13 +1,13 @@
 import { z } from "zod";
-import { DateTime } from "./common";
+import { DateOnly } from "./common";
 
 export const VaccineSpecies = z.enum(["dog", "cat", "other"]);
 
 export const VaccineTypeCreateSchema = z.object({
 	name: z.string().min(1),
-	totalDoses: z.number().int().min(1).max(12).optional(),
-	description: z.string().nullable().optional(),
-	species: VaccineSpecies.default("other"),
+	species: z.enum(["dog", "cat", "other"]).optional().nullable(),
+	total_doses: z.number().int().min(1),
+	description: z.string().optional().nullable(),
 	brand: z.string().nullable().optional(),
 	notes: z.string().nullable().optional(),
 });
@@ -36,17 +36,13 @@ export const VaccineTypeRowSchema = z.object({
 });
 
 export const VaccineApplicationCreateSchema = z.object({
-	petId: z.string(),
-	vaccineTypeId: z.string(),
+	petId: z.string().min(1),
+	vaccineTypeId: z.string().min(1),
 	doseNumber: z.number().int().min(1),
-	administeredAt: z
-		.string()
-		.regex(
-			/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?(\.\d+)?(Z|[+\-]\d{2}:\d{2})$/,
-		),
+	administeredAt: DateOnly,
 	administeredBy: z.string().optional().nullable(),
 	clinic: z.string().optional().nullable(),
-	nextDoseAt: DateTime.optional().nullable(),
+	nextDoseAt: DateOnly.optional().nullable(),
 	notes: z.string().optional().nullable(),
 });
 

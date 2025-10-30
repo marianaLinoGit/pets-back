@@ -1,5 +1,8 @@
+import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { z } from "zod";
+import { nowIso } from "../lib/utils";
+import { VaccineApplicationCreateSchema } from "../schemas";
 
 type Env = { Bindings: { DB: D1Database; API_KEY?: string } };
 
@@ -142,79 +145,56 @@ vaccines.put("/types/:id", async (c) => {
 	return c.json({ updated: true });
 });
 
-vaccines.post("/applications", async (c) => {
-	const raw = await c.req.json();
-	const body = z
-		.object({
-			petId: z.string(),
-			vaccineTypeId: z.string(),
-			doseNumber: z.number().int().min(1),
-			administeredAt: z.string(),
-			administeredBy: z.string().nullable().optional(),
-			clinic: z.string().nullable().optional(),
-			nextDoseAt: z.string().nullable().optional(),
-			notes: z.string().nullable().optional(),
-		})
-		.parse(raw);
-
-	const ins = await c.env.DB.prepare(
-		`INSERT INTO vaccine_applications
-      (id, pet_id, vaccine_type_id, dose_number, administered_at, administered_by, clinic, next_dose_at, notes, created_at)
-     VALUES (lower(hex(randomblob(16))), ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
-	)
-		.bind(
-			body.petId,
-			body.vaccineTypeId,
-			body.doseNumber,
-			body.administeredAt,
-			body.administeredBy ?? null,
-			body.clinic ?? null,
-			body.nextDoseAt ?? null,
-			body.notes ?? null,
+vaccines.post(
+	"/applications",
+	zValidator("json", VaccineApplicationCreateSchema),
+	async (c) => {
+		const b = c.req.valid("json") as any;
+		const id = crypto.randomUUID();
+		const ts = nowIso();
+		const r = await c.env.DB.prepare(
+			`INSERT INTO vaccine_applications
+	   (id, pet_id, vaccine_type_id, dose_number, administered_at, administered_by, clinic, next_dose_at, notes, created_at)
+	   VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)`,
 		)
-		.run();
+			.bind(
+				id,
+				b.petId,
+				b.vaccineTypeId,
+				b.doseNumber,
+				b.administeredAt,
+				b.administeredBy ?? null,
+				b.clinic ?? null,
+				b.nextDoseAt ?? null,
+				b.notes ?? null,
+				ts,
+			)
+			.run();
 
-	const last = await c.env.DB.prepare(
-		"SELECT id FROM vaccine_applications WHERE rowid = ?",
-	)
-		.bind(ins.meta.last_row_id)
-		.first<string>();
-
-	return c.json({ id: (last as any)?.id }, 201);
-});
+		if (!r.success) return c.json({ created: false }, 500);
+		return c.json({ id }, 201);
+	},
+);
 
 vaccines.get("/applications", async (c) => {
-	const qp = z
-		.object({
-			petId: z.string().optional(),
-			limit: z.coerce.number().int().min(1).max(200).optional(),
-			offset: z.coerce.number().int().min(0).optional(),
-		})
-		.parse(c.req.query());
-
-	const where: string[] = [];
-	const vals: any[] = [];
-
-	if (qp.petId) {
-		where.push("va.pet_id = ?");
-		vals.push(qp.petId);
+	const petId = c.req.query("petId");
+	if (petId) {
+		const rows = await c.env.DB.prepare(
+			`SELECT a.*, t.name AS vaccine_name
+		 FROM vaccine_applications a
+		 LEFT JOIN vaccine_types t ON t.id = a.vaccine_type_id
+		 WHERE a.pet_id = ?1
+		 ORDER BY a.administered_at DESC, a.created_at DESC`,
+		)
+			.bind(petId)
+			.all();
+		return c.json(rows.results || []);
 	}
-
-	const sql =
-		`SELECT va.id, va.pet_id, va.vaccine_type_id, va.dose_number, va.administered_at,
-            va.administered_by, va.clinic, va.next_dose_at, va.notes, va.created_at,
-            vt.name AS vaccine_name
-       FROM vaccine_applications va
-       JOIN vaccine_types vt ON vt.id = va.vaccine_type_id` +
-		(where.length ? ` WHERE ${where.join(" AND ")}` : "") +
-		` ORDER BY va.administered_at DESC
-       LIMIT ? OFFSET ?`;
-
-	vals.push(qp.limit ?? 100);
-	vals.push(qp.offset ?? 0);
-
-	const rs = await c.env.DB.prepare(sql)
-		.bind(...vals)
-		.all();
-	return c.json(rs.results || []);
+	const rows = await c.env.DB.prepare(
+		`SELECT a.*, t.name AS vaccine_name
+	   FROM vaccine_applications a
+	   LEFT JOIN vaccine_types t ON t.id = a.vaccine_type_id
+	   ORDER BY a.administered_at DESC, a.created_at DESC`,
+	).all();
+	return c.json(rows.results || []);
 });
