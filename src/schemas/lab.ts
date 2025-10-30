@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { DateTime } from "./common";
 
+export const SpeciesEnum = z.enum(["dog", "cat", "other"]);
+
 const labValueSchema = z
 	.object({
 		testTypeId: z.string().optional(),
@@ -14,10 +16,11 @@ const labValueSchema = z
 
 export const LabTestTypeCreateSchema = z.object({
 	name: z.string().min(1),
-	unit: z.string().optional().nullable(),
-	refLow: z.number().optional().nullable(),
-	refHigh: z.number().optional().nullable(),
-	category: z.string().optional().nullable(),
+	species: SpeciesEnum.default("other"),
+	unit: z.string().max(50).nullable().optional(),
+	refLow: z.number().nullable().optional(),
+	refHigh: z.number().nullable().optional(),
+	category: z.string().max(100).nullable().optional(),
 });
 
 export const LabResultCreateSchema = z.object({
@@ -28,3 +31,5 @@ export const LabResultCreateSchema = z.object({
 	notes: z.string().optional().nullable(),
 	values: z.array(labValueSchema).min(1),
 });
+
+export const LabTestTypeUpdateSchema = LabTestTypeCreateSchema.partial();
