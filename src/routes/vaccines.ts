@@ -4,6 +4,7 @@ import { z } from "zod";
 import { nowIso } from "../lib/utils";
 import {
 	VaccineApplicationCreateSchema,
+	VaccineApplicationUpdateSchema,
 	VaccineSpecies,
 	VaccineTypeCreateSchema,
 	VaccineTypeUpdateInSchema,
@@ -196,10 +197,20 @@ vaccines.post(
 		const id = crypto.randomUUID();
 		const ts = nowIso();
 
+		let brand = typeof b.brand === "string" ? b.brand.trim() : "";
+		if (!brand) {
+			const vt = await c.env.DB.prepare(
+				`SELECT brand FROM vaccine_types WHERE id=?1`,
+			)
+				.bind(b.vaccineTypeId)
+				.first();
+			brand = (vt?.brand as string) ?? "";
+		}
+
 		const r = await c.env.DB.prepare(
 			`INSERT INTO vaccine_applications
-       (id, pet_id, vaccine_type_id, dose_number, administered_at, administered_by, clinic, next_dose_at, notes, created_at)
-       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)`,
+		 (id, pet_id, vaccine_type_id, dose_number, administered_at, administered_by, clinic, next_dose_at, notes, brand, created_at)
+		 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)`,
 		)
 			.bind(
 				id,
@@ -211,6 +222,7 @@ vaccines.post(
 				b.clinic ?? null,
 				b.nextDoseAt ?? null,
 				b.notes ?? null,
+				brand,
 				ts,
 			)
 			.run();
@@ -222,23 +234,98 @@ vaccines.post(
 
 vaccines.get("/applications", async (c) => {
 	const petId = c.req.query("petId");
+	const base = `SELECT a.*, t.name_biz AS vaccine_name
+	   FROM vaccine_applications a
+	   LEFT JOIN vaccine_types t ON t.id = a.vaccine_type_id`;
 	if (petId) {
 		const rows = await c.env.DB.prepare(
-			`SELECT a.*, t.name AS vaccine_name
-       FROM vaccine_applications a
-       LEFT JOIN vaccine_types t ON t.id = a.vaccine_type_id
-       WHERE a.pet_id = ?1
-       ORDER BY a.administered_at DESC, a.created_at DESC`,
+			base +
+				` WHERE a.pet_id = ?1
+				 ORDER BY a.administered_at DESC, a.created_at DESC`,
 		)
 			.bind(petId)
 			.all();
 		return c.json(rows.results || []);
 	}
 	const rows = await c.env.DB.prepare(
-		`SELECT a.*, t.name AS vaccine_name
-     FROM vaccine_applications a
-     LEFT JOIN vaccine_types t ON t.id = a.vaccine_type_id
-     ORDER BY a.administered_at DESC, a.created_at DESC`,
+		base + ` ORDER BY a.administered_at DESC, a.created_at DESC`,
 	).all();
 	return c.json(rows.results || []);
 });
+
+vaccines.get("/applications/:id", async (c) => {
+	const id = c.req.param("id");
+	const row = await c.env.DB.prepare(
+		`SELECT a.*, t.name_biz AS vaccine_name
+	   FROM vaccine_applications a
+	   LEFT JOIN vaccine_types t ON t.id = a.vaccine_type_id
+	   WHERE a.id = ?1`,
+	)
+		.bind(id)
+		.first();
+	if (!row) return c.json({ error: "not_found" }, 404);
+	return c.json(row);
+});
+
+vaccines.put(
+	"/applications/:id",
+	zValidator("json", VaccineApplicationUpdateSchema),
+	async (c) => {
+		const id = c.req.param("id");
+		const b = c.req.valid("json");
+
+		const exists = await c.env.DB.prepare(
+			`SELECT id FROM vaccine_applications WHERE id=?1`,
+		)
+			.bind(id)
+			.first();
+		if (!exists) return c.json({ error: "not_found" }, 404);
+
+		if (b.vaccineTypeId) {
+			const vt = await c.env.DB.prepare(
+				`SELECT id FROM vaccine_types WHERE id=?1`,
+			)
+				.bind(b.vaccineTypeId)
+				.first();
+			if (!vt) return c.json({ error: "invalid_vaccine_type" }, 400);
+		}
+
+		const r = await c.env.DB.prepare(
+			`UPDATE vaccine_applications SET
+		   vaccine_type_id = COALESCE(?2, vaccine_type_id),
+		   dose_number = COALESCE(?3, dose_number),
+		   administered_at = COALESCE(?4, administered_at),
+		   administered_by = COALESCE(?5, administered_by),
+		   clinic = COALESCE(?6, clinic),
+		   next_dose_at = COALESCE(?7, next_dose_at),
+		   notes = COALESCE(?8, notes),
+		   brand = COALESCE(?9, brand)
+		 WHERE id = ?1`,
+		)
+			.bind(
+				id,
+				(b as any).vaccineTypeId ?? null,
+				(b as any).doseNumber ?? null,
+				(b as any).administeredAt ?? null,
+				(b as any).administeredBy ?? null,
+				(b as any).clinic ?? null,
+				(b as any).nextDoseAt ?? null,
+				(b as any).notes ?? null,
+				(b as any).brand ?? null,
+			)
+			.run();
+
+		if (!r.success) return c.json({ updated: false }, 500);
+
+		const out = await c.env.DB.prepare(
+			`SELECT a.*, t.name_biz AS vaccine_name
+		 FROM vaccine_applications a
+		 LEFT JOIN vaccine_types t ON t.id = a.vaccine_type_id
+		 WHERE a.id = ?1`,
+		)
+			.bind(id)
+			.first();
+
+		return c.json(out);
+	},
+);

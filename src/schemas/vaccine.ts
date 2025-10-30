@@ -101,7 +101,21 @@ export const VaccineApplicationCreateSchema = z.object({
 	clinic: Trimmed.optional().nullable(),
 	nextDoseAt: DateOnly.optional().nullable(),
 	notes: Trimmed.optional().nullable(),
+	brand: Trimmed.optional().nullable(),
 });
+
+export const VaccineApplicationUpdateSchema = z
+	.object({
+		vaccineTypeId: z.string().min(1).optional(),
+		doseNumber: z.number().int().min(1).optional(),
+		administeredAt: DateOnly.optional(),
+		administeredBy: Trimmed.optional().nullable(),
+		clinic: Trimmed.optional().nullable(),
+		nextDoseAt: DateOnly.optional().nullable(),
+		notes: Trimmed.optional().nullable(),
+		brand: Trimmed.optional().nullable(),
+	})
+	.refine((o) => Object.keys(o).length > 0, { message: "empty" });
 
 export type VaccineTypeCreate = z.infer<typeof VaccineTypeCreateSchema>;
 export type VaccineTypeUpdateIn = z.infer<typeof VaccineTypeUpdateInSchema>;
