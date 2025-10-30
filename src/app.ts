@@ -1,7 +1,7 @@
 import { swaggerUI } from "@hono/swagger-ui";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { buildOpenApi } from "./openapi/openapi";
+import { buildOpenApi } from "./openapi";
 import { alerts } from "./routes/alerts";
 import { conditions } from "./routes/conditions";
 import { glycemia } from "./routes/glycemia";
@@ -28,7 +28,23 @@ app.route("/vet", vet);
 app.route("/alerts", alerts);
 app.route("/settings", settings);
 
-app.get("/openapi.json", (c) => c.json(buildOpenApi({ serverUrl: "/" })));
+let openapiDoc: any | null = null;
+
+app.get("/openapi.json", (c) => {
+	try {
+		if (!openapiDoc) {
+			openapiDoc = buildOpenApi({ serverUrl: "/" });
+		}
+		return c.json(openapiDoc);
+	} catch (err: any) {
+		console.error("[OPENAPI] build failed:", err?.stack || err);
+		return c.json(
+			{ error: "openapi_build_failed", message: String(err) },
+			500,
+		);
+	}
+});
+
 app.get(
 	"/docs",
 	swaggerUI({
