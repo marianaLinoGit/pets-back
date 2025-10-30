@@ -27,6 +27,7 @@ app.route("/treatments", treatments);
 app.route("/vet", vet);
 app.route("/alerts", alerts);
 app.route("/settings", settings);
+app.route("/", conditions);
 
 let openapiDoc: any | null = null;
 
