@@ -3,6 +3,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { buildOpenApi } from "./openapi/openapi";
 import { alerts } from "./routes/alerts";
+import { conditions } from "./routes/conditions";
 import { glycemia } from "./routes/glycemia";
 import { lab } from "./routes/lab";
 import { pets } from "./routes/pets";
