@@ -1,0 +1,5 @@
+import { z } from "zod";
+
+export const SpeciesEnum = z.enum(["dog", "cat", "other"]);
+export const okArray = z.array(z.any());
+export const okObj = z.any();
