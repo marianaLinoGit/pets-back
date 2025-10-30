@@ -4,6 +4,7 @@ export * from "./conditions";
 export * from "./glycemia";
 export * from "./lab";
 export * from "./pet";
+export * from "./settings";
 export * from "./treatment";
 export * from "./vaccine";
 export * from "./vet";
