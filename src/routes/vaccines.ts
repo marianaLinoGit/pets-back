@@ -2,29 +2,25 @@ import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { z } from "zod";
 import { nowIso } from "../lib/utils";
-import { VaccineApplicationCreateSchema } from "../schemas";
+import {
+	VaccineApplicationCreateSchema,
+	VaccineSpecies,
+	VaccineTypeCreateSchema,
+	VaccineTypeUpdateInSchema,
+} from "../schemas";
 
 type Env = { Bindings: { DB: D1Database; API_KEY?: string } };
 
-export const vaccines = new Hono<Env>();
+const isStr = (v: unknown): v is string => typeof v === "string";
+const normOrEmpty = (v: string | null | undefined) =>
+	(isStr(v) ? v.trim() : "") as string;
 
-const SpeciesEnum = z.enum(["dog", "cat", "other"]);
+export const vaccines = new Hono<Env>();
 
 const QueryListSchema = z.object({
 	q: z.string().optional(),
-	species: SpeciesEnum.optional(),
+	species: VaccineSpecies.optional(),
 });
-
-const VaccineTypeCreateBody = z.object({
-	name: z.string().min(1),
-	totalDoses: z.number().int().min(1).max(12),
-	description: z.string().nullable().optional(),
-	species: SpeciesEnum.default("other"),
-	brand: z.string().nullable().optional(),
-	notes: z.string().nullable().optional(),
-});
-
-const VaccineTypeUpdateBody = VaccineTypeCreateBody.partial();
 
 vaccines.get("/types", async (c) => {
 	const parsed = QueryListSchema.safeParse(c.req.query());
@@ -37,7 +33,7 @@ vaccines.get("/types", async (c) => {
 	const params: any[] = [];
 
 	if (q) {
-		where.push("(name LIKE ? OR description LIKE ? OR brand LIKE ?)");
+		where.push("(name_biz LIKE ? OR description LIKE ? OR brand LIKE ?)");
 		params.push(`%${q}%`, `%${q}%`, `%${q}%`);
 	}
 	if (species) {
@@ -46,10 +42,14 @@ vaccines.get("/types", async (c) => {
 	}
 
 	const sql =
-		`SELECT id, name, total_doses, description, species, brand, notes, created_at
-     FROM vaccine_types` +
-		(where.length ? ` WHERE ${where.join(" AND ")}` : "") +
-		` ORDER BY name ASC`;
+		`SELECT id, name_biz AS name, total_doses, description, species, brand, notes, created_at, updated_at
+   FROM vaccine_types` +
+		(where.length
+			? ` WHERE ${where
+					.map((w) => w.replace(/\bname\b/g, "name_biz"))
+					.join(" AND ")}`
+			: "") +
+		` ORDER BY name_biz ASC`;
 
 	const rs = await c.env.DB.prepare(sql)
 		.bind(...params)
@@ -57,93 +57,136 @@ vaccines.get("/types", async (c) => {
 	return c.json(rs.results || []);
 });
 
-vaccines.post("/types", async (c) => {
-	const raw = await c.req.json();
-	const parsed = VaccineTypeCreateBody.safeParse(raw);
-	if (!parsed.success) return c.json({ error: "bad_body" }, 400);
+vaccines.post(
+	"/types",
+	zValidator("json", VaccineTypeCreateSchema),
+	async (c) => {
+		const b = c.req.valid("json");
+		const id = crypto.randomUUID();
 
-	const b = parsed.data;
+		const nameBiz = b.name.trim();
+		const brandNorm = (b.brand ?? "").trim();
+		const species = b.species;
 
-	const dup = await c.env.DB.prepare(
-		"SELECT id FROM vaccine_types WHERE LOWER(name)=LOWER(?) AND species=? LIMIT 1",
-	)
-		.bind(b.name, b.species)
-		.first();
-	if (dup) return c.json({ error: "duplicate" }, 409);
-
-	const ins = await c.env.DB.prepare(
-		`INSERT INTO vaccine_types
-      (id, name, total_doses, description, species, brand, notes, created_at)
-     VALUES (lower(hex(randomblob(16))), ?, ?, ?, ?, ?, ?, datetime('now'))`,
-	)
-		.bind(
-			b.name,
-			b.totalDoses,
-			b.description ?? null,
-			b.species,
-			b.brand ?? null,
-			b.notes ?? null,
+		const exists = await c.env.DB.prepare(
+			`SELECT 1 FROM vaccine_types
+			 WHERE species=?1 AND name_biz=?2 AND brand=?3
+			 LIMIT 1`,
 		)
-		.run();
+			.bind(species, nameBiz, brandNorm)
+			.first();
 
-	const last = await c.env.DB.prepare(
-		"SELECT id FROM vaccine_types WHERE rowid = ?",
-	)
-		.bind(ins.meta.last_row_id)
-		.first<string>();
+		if (exists) return c.json({ error: "duplicate_name_brand" }, 409);
 
-	return c.json({ id: (last as any)?.id }, 201);
-});
+		const r = await c.env.DB.prepare(
+			`INSERT INTO vaccine_types
+			 (id, name_biz, total_doses, description, species, brand, notes)
+			 VALUES (?1,?2,?3,?4,?5,?6,?7)`,
+		)
+			.bind(
+				id,
+				nameBiz,
+				b.total_doses,
+				b.description ?? null,
+				b.species,
+				brandNorm,
+				b.notes ?? null,
+			)
+			.run();
 
-vaccines.put("/types/:id", async (c) => {
-	const id = c.req.param("id");
-	if (!id) return c.json({ error: "missing_id" }, 400);
+		if (!r.success) return c.json({ created: false }, 500);
+		return c.json({ id }, 201);
+	},
+);
 
-	const raw = await c.req.json().catch(() => ({}));
-	const parsed = VaccineTypeUpdateBody.safeParse(raw);
-	if (!parsed.success) return c.json({ error: "bad_body" }, 400);
+vaccines.put(
+	"/types/:id",
+	zValidator("json", VaccineTypeUpdateInSchema),
+	async (c) => {
+		const id = c.req.param("id");
+		const body = VaccineTypeCreateSchema.parse(c.req.valid("json"));
 
-	const b = parsed.data;
+		const row = await c.env.DB.prepare(
+			`SELECT name_biz AS name, species, brand FROM vaccine_types WHERE id=?1`,
+		)
+			.bind(id)
+			.first();
+		if (!row) return c.json({ error: "not_found" }, 404);
 
-	const fields: string[] = [];
-	const vals: any[] = [];
+		const cur = row as {
+			name: string;
+			species: "dog" | "cat" | "other";
+			brand: string;
+		};
 
-	if (b.name !== undefined) {
-		fields.push("name = ?");
-		vals.push(b.name);
-	}
-	if (b.totalDoses !== undefined) {
-		fields.push("total_doses = ?");
-		vals.push(b.totalDoses);
-	}
-	if (b.description !== undefined) {
-		fields.push("description = ?");
-		vals.push(b.description);
-	}
-	if (b.species !== undefined) {
-		fields.push("species = ?");
-		vals.push(b.species);
-	}
-	if (b.brand !== undefined) {
-		fields.push("brand = ?");
-		vals.push(b.brand);
-	}
-	if (b.notes !== undefined) {
-		fields.push("notes = ?");
-		vals.push(b.notes);
-	}
+		const nextNameBiz = body.name ?? cur.name;
+		const nextSpecies = body.species ?? cur.species;
+		const nextBrand =
+			body.brand !== undefined
+				? typeof body.brand === "string"
+					? body.brand.trim()
+					: ""
+				: cur.brand;
 
-	if (!fields.length) return c.json({ updated: false });
+		const dupe = await c.env.DB.prepare(
+			`SELECT 1 FROM vaccine_types
+					 WHERE species=?1 AND name_biz=?2 AND brand=?3 AND id<>?4
+					 LIMIT 1`,
+		)
+			.bind(nextSpecies, nextNameBiz, nextBrand, id)
+			.first();
+		if (dupe) return c.json({ error: "duplicate_name_brand" }, 409);
 
-	const rs = await c.env.DB.prepare(
-		`UPDATE vaccine_types SET ${fields.join(", ")} WHERE id = ?`,
-	)
-		.bind(...vals, id)
-		.run();
+		const dupeCombo = await c.env.DB.prepare(
+			`SELECT 1 FROM vaccine_types
+			 WHERE species=?1 AND name=?2 AND brand=?3 AND id<>?4
+			 LIMIT 1`,
+		)
+			.bind(nextSpecies, nextNameBiz, nextBrand, id)
+			.first();
+		if (dupeCombo) {
+			return c.json(
+				{
+					error: "duplicate_name_brand",
+					fields: ["species", "name", "brand"],
+				},
+				409,
+			);
+		}
 
-	if (!rs.meta.changes) return c.json({ error: "not_found" }, 404);
-	return c.json({ updated: true });
-});
+		const r = await c.env.DB.prepare(
+			`UPDATE vaccine_types SET
+			   name_biz = COALESCE(?2, name_biz),
+			   total_doses = COALESCE(?3, total_doses),
+			   description = COALESCE(?4, description),
+			   species = COALESCE(?5, species),
+			   brand = COALESCE(?6, brand),
+			   notes = COALESCE(?7, notes)
+			 WHERE id = ?1`,
+		)
+			.bind(
+				id,
+				body.name !== undefined ? nextNameBiz : null,
+				body.total_doses ?? null,
+				body.description ?? null,
+				body.species ?? null,
+				body.brand !== undefined ? nextBrand : null,
+				body.notes ?? null,
+			)
+			.run();
+
+		if (!r.success) return c.json({ updated: false }, 500);
+
+		const out = await c.env.DB.prepare(
+			`SELECT id, name_biz AS name, total_doses, description, species, brand, notes, created_at, updated_at
+			 FROM vaccine_types WHERE id=?1`,
+		)
+			.bind(id)
+			.first();
+
+		return c.json(out);
+	},
+);
 
 vaccines.post(
 	"/applications",
@@ -152,10 +195,11 @@ vaccines.post(
 		const b = c.req.valid("json") as any;
 		const id = crypto.randomUUID();
 		const ts = nowIso();
+
 		const r = await c.env.DB.prepare(
 			`INSERT INTO vaccine_applications
-	   (id, pet_id, vaccine_type_id, dose_number, administered_at, administered_by, clinic, next_dose_at, notes, created_at)
-	   VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)`,
+       (id, pet_id, vaccine_type_id, dose_number, administered_at, administered_by, clinic, next_dose_at, notes, created_at)
+       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)`,
 		)
 			.bind(
 				id,
@@ -181,10 +225,10 @@ vaccines.get("/applications", async (c) => {
 	if (petId) {
 		const rows = await c.env.DB.prepare(
 			`SELECT a.*, t.name AS vaccine_name
-		 FROM vaccine_applications a
-		 LEFT JOIN vaccine_types t ON t.id = a.vaccine_type_id
-		 WHERE a.pet_id = ?1
-		 ORDER BY a.administered_at DESC, a.created_at DESC`,
+       FROM vaccine_applications a
+       LEFT JOIN vaccine_types t ON t.id = a.vaccine_type_id
+       WHERE a.pet_id = ?1
+       ORDER BY a.administered_at DESC, a.created_at DESC`,
 		)
 			.bind(petId)
 			.all();
@@ -192,9 +236,9 @@ vaccines.get("/applications", async (c) => {
 	}
 	const rows = await c.env.DB.prepare(
 		`SELECT a.*, t.name AS vaccine_name
-	   FROM vaccine_applications a
-	   LEFT JOIN vaccine_types t ON t.id = a.vaccine_type_id
-	   ORDER BY a.administered_at DESC, a.created_at DESC`,
+     FROM vaccine_applications a
+     LEFT JOIN vaccine_types t ON t.id = a.vaccine_type_id
+     ORDER BY a.administered_at DESC, a.created_at DESC`,
 	).all();
 	return c.json(rows.results || []);
 });
