@@ -7,7 +7,7 @@ import { conditions } from "./routes/conditions";
 import { glycemia } from "./routes/glycemia";
 import { lab } from "./routes/lab";
 import { pets } from "./routes/pets";
-import settings from "./routes/settings";
+import { settings } from "./routes/settings";
 import { treatments } from "./routes/treatments";
 import { vaccines } from "./routes/vaccines";
 import { vet } from "./routes/vet";
