@@ -329,3 +329,123 @@ vaccines.put(
 		return c.json(out);
 	},
 );
+
+vaccines.get("/due", async (c) => {
+	const Query = z.object({
+		petId: z.string().uuid().optional(),
+		from: z
+			.string()
+			.regex(/^\d{4}-\d{2}-\d{2}$/)
+			.optional(),
+		to: z
+			.string()
+			.regex(/^\d{4}-\d{2}-\d{2}$/)
+			.optional(),
+		limit: z
+			.string()
+			.transform((v) =>
+				Math.min(Math.max(parseInt(v || "500", 10) || 500, 1), 1000),
+			)
+			.optional(),
+		offset: z
+			.string()
+			.transform((v) => Math.max(parseInt(v || "0", 10) || 0, 0))
+			.optional(),
+	});
+
+	const parsed = Query.safeParse(c.req.query());
+	if (!parsed.success) {
+		return c.json(
+			{ error: "bad_query", details: parsed.error.flatten() },
+			400,
+		);
+	}
+	const { petId, from, to, limit = 500, offset = 0 } = parsed.data;
+
+	// --------- ATRASADAS ---------
+	let overdueSQL = `
+	  SELECT
+		a.id                 AS application_id,
+		a.pet_id,
+		a.vaccine_type_id,
+		t.name_biz           AS vaccine_name,
+		COALESCE(a.brand,'') AS brand,
+		a.administered_at    AS last_administered_at,
+		a.next_dose_at       AS next_dose_at,
+		1                    AS overdue,
+		0                    AS next_is_null
+	  FROM vaccine_applications a
+	  LEFT JOIN vaccine_types t ON t.id = a.vaccine_type_id
+	  WHERE a.next_dose_at IS NOT NULL
+		AND a.next_dose_at < DATE('now')
+		AND NOT EXISTS (
+		  SELECT 1
+		  FROM vaccine_applications b
+		  WHERE b.pet_id = a.pet_id
+			AND b.vaccine_type_id = a.vaccine_type_id
+			AND b.administered_at >= a.next_dose_at
+		)
+	`;
+	const overParams: any[] = [];
+	if (petId) {
+		overdueSQL += ` AND a.pet_id = ?`;
+		overParams.push(petId);
+	}
+
+	// --------- PRÓXIMAS ---------
+	let upcomingSQL = `
+	  SELECT
+		la.id                AS application_id,
+		la.pet_id,
+		la.vaccine_type_id,
+		t.name_biz           AS vaccine_name,
+		COALESCE(la.brand,'')AS brand,
+		la.administered_at   AS last_administered_at,
+		la.next_dose_at      AS next_dose_at,
+		0                    AS overdue,
+		CASE WHEN la.next_dose_at IS NULL THEN 1 ELSE 0 END AS next_is_null
+	  FROM vaccine_applications la
+	  LEFT JOIN vaccine_types t ON t.id = la.vaccine_type_id
+	  WHERE la.administered_at = (
+		SELECT MAX(x.administered_at)
+		FROM vaccine_applications x
+		WHERE x.pet_id = la.pet_id
+		  AND x.vaccine_type_id = la.vaccine_type_id
+	  )
+		AND la.next_dose_at IS NOT NULL
+		AND la.next_dose_at >= DATE('now')
+	`;
+	const upParams: any[] = [];
+	if (petId) {
+		upcomingSQL += ` AND la.pet_id = ?`;
+		upParams.push(petId);
+	}
+	if (from && to) {
+		upcomingSQL += ` AND la.next_dose_at BETWEEN ? AND ?`;
+		upParams.push(from, to);
+	} else if (from) {
+		upcomingSQL += ` AND la.next_dose_at >= ?`;
+		upParams.push(from);
+	} else if (to) {
+		upcomingSQL += ` AND la.next_dose_at <= ?`;
+		upParams.push(to);
+	}
+
+	// --------- UNION + ORDER BY só por colunas do resultado ---------
+	const unionSQL = `
+	  ${overdueSQL}
+	  UNION ALL
+	  ${upcomingSQL}
+	  ORDER BY
+		overdue DESC,
+		next_is_null ASC,
+		next_dose_at ASC
+	  LIMIT ? OFFSET ?
+	`;
+	const params = [...overParams, ...upParams, limit, offset];
+
+	const rs = await c.env.DB.prepare(unionSQL)
+		.bind(...params)
+		.all();
+	return c.json(rs.results || []);
+});
