@@ -2,7 +2,8 @@ import type { D1Database } from "@cloudflare/workers-types";
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { requireApiKey } from "../lib/auth";
-import { int, isoFromLocal, nowIso } from "../lib/utils";
+import { isoFromLocal, nowIso } from "../lib/utils";
+import { z } from "../lib/z";
 import {
 	GlyPointExpectedUpdateSchema,
 	GlyPointUpdateSchema,
@@ -17,16 +18,85 @@ export const glycemia = new Hono<Env>();
 glycemia.get("/__ping", (c) => c.text("ok"));
 
 glycemia.get("/sessions", async (c) => {
-	const petId = c.req.query("petId");
-	const limit = Math.min(int(c.req.query("limit"), 50), 200);
-	const offset = int(c.req.query("offset"), 0);
-	if (!petId) return c.json([]);
-	const r = await c.env.DB.prepare(
-		"SELECT * FROM glycemic_curve_sessions WHERE pet_id = ?1 ORDER BY session_date DESC LIMIT ?2 OFFSET ?3",
-	)
-		.bind(petId, limit, offset)
+	const Query = z.object({
+		petId: z.string().uuid().optional(),
+		from: z
+			.string()
+			.regex(/^\d{4}-\d{2}-\d{2}$/)
+			.optional(), // YYYY-MM-DD
+		to: z
+			.string()
+			.regex(/^\d{4}-\d{2}-\d{2}$/)
+			.optional(),
+		futureOnly: z
+			.union([z.literal("0"), z.literal("1")])
+			.optional()
+			.transform((v) => (v === "1" ? 1 : 0)),
+		limit: z
+			.string()
+			.transform((v) =>
+				Math.min(Math.max(parseInt(v || "50", 10) || 50, 1), 200),
+			)
+			.optional(),
+		offset: z
+			.string()
+			.transform((v) => Math.max(parseInt(v || "0", 10) || 0, 0))
+			.optional(),
+	});
+
+	const parsed = Query.safeParse(c.req.query());
+	if (!parsed.success)
+		return c.json(
+			{ error: "bad_query", details: parsed.error.flatten() },
+			400,
+		);
+
+	const {
+		petId,
+		from,
+		to,
+		futureOnly = 1,
+		limit = 50,
+		offset = 0,
+	} = parsed.data;
+
+	const where: string[] = [];
+	const params: any[] = [];
+
+	if (petId) {
+		where.push("pet_id = ?");
+		params.push(petId);
+	}
+
+	if (from && to) {
+		where.push("session_date BETWEEN ? AND ?");
+		params.push(from, to);
+	} else if (from) {
+		where.push("session_date >= ?");
+		params.push(from);
+	} else if (to) {
+		where.push("session_date <= ?");
+		params.push(to);
+	} else if (futureOnly) {
+		// usa "hoje" em UTC do SQLite; se você quiser base local,
+		// mande `from` já normalizado do front.
+		where.push("session_date >= DATE('now')");
+	}
+
+	const sql =
+		`SELECT id, pet_id, session_date, notes, created_at, updated_at
+	   FROM glycemic_curve_sessions` +
+		(where.length ? ` WHERE ${where.join(" AND ")}` : "") +
+		// janela futura: ordena crescente; sem janela, mantém seu comportamento original
+		` ORDER BY session_date ${from || to || futureOnly ? "ASC" : "DESC"}
+		LIMIT ? OFFSET ?`;
+
+	params.push(limit, offset);
+
+	const rs = await c.env.DB.prepare(sql)
+		.bind(...params)
 		.all();
-	return c.json(r.results || []);
+	return c.json(rs.results || []);
 });
 
 glycemia.post(
@@ -99,6 +169,35 @@ glycemia.post(
 		}
 	},
 );
+
+glycemia.get("/sessions/count", async (c) => {
+	const idsParam = c.req.query("ids") || "";
+	const atParam = (c.req.query("at") || "").trim();
+	const ids = idsParam
+		.split(",")
+		.map((s) => s.trim())
+		.filter(Boolean);
+	if (!ids.length) return c.json({ counts: [] });
+
+	const at = atParam || new Date().toISOString().slice(0, 10);
+	const placeholders = ids.map((_, i) => `?${i + 2}`).join(",");
+	const res = await c.env.DB.prepare(
+		`SELECT pet_id, COUNT(*) AS count
+	   FROM glycemic_curve_sessions
+	   WHERE session_date <= ?1 AND pet_id IN (${placeholders})
+	   GROUP BY pet_id`,
+	)
+		.bind(at, ...ids)
+		.all();
+
+	const rows = res.results || [];
+	const map = new Map(ids.map((id) => [id, 0]));
+	for (const r of rows as any[]) map.set(r.pet_id, Number(r.count) || 0);
+
+	return c.json({
+		counts: Array.from(map, ([pet_id, count]) => ({ pet_id, count })),
+	});
+});
 
 glycemia.get("/sessions/:id", async (c) => {
 	const sid = c.req.param("id");

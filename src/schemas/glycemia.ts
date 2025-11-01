@@ -48,3 +48,34 @@ export const GlyPointExpectedUpdateSchema = z.object({
 export const GlySessionIdParams = z.object({
 	id: z.string(),
 });
+
+export const CountQuerySchema = z.object({
+	ids: z
+		.string()
+		.min(1)
+		.openapi({
+			param: { name: "ids", in: "query", required: true },
+			example: "uuid1,uuid2",
+		}),
+	at: z
+		.string()
+		.regex(/^\d{4}-\d{2}-\d{2}$/)
+		.optional()
+		.openapi({
+			param: { name: "at", in: "query", required: false },
+			example: "2025-11-03",
+		}),
+});
+
+export const GlyCountItemSchema = z
+	.object({
+		pet_id: z.string().uuid(),
+		count: z.number().int().nonnegative(),
+	})
+	.openapi("GlyCountItem");
+
+export const GlyCountsResponseSchema = z
+	.object({
+		counts: z.array(GlyCountItemSchema),
+	})
+	.openapi("GlyCountsResponse");

@@ -1,6 +1,8 @@
 import { OpenAPIRegistry } from "@asteasolutions/zod-to-openapi";
 import { z } from "../../lib/z";
 import {
+	CountQuerySchema,
+	GlyCountsResponseSchema,
 	GlyPointExpectedUpdateSchema,
 	GlyPointUpdateSchema,
 	GlySessionCreateSchema,
@@ -50,6 +52,22 @@ export function registerPathsGlycemia(registry: OpenAPIRegistry) {
 					"application/json": {
 						schema: z.object({ id: z.string() }),
 					},
+				},
+			},
+		},
+	});
+
+	registry.registerPath({
+		method: "get",
+		path: "/glycemia/sessions/count",
+		tags: ["Glycemia"],
+		request: { query: CountQuerySchema },
+		responses: {
+			200: {
+				description:
+					"Contagem de sessões por pet_id até a data 'at' (inclusiva).",
+				content: {
+					"application/json": { schema: GlyCountsResponseSchema },
 				},
 			},
 		},
