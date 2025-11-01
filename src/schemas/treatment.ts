@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "../lib/z";
 import { DateTime } from "./common";
 
 export const TreatmentCreateSchema = z.object({

@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "../lib/z";
 import { DateOnly } from "./common";
 
 export const Curability = z.enum(["CURÁVEL", "NÃO_CURÁVEL", "INDEFINIDO"]);

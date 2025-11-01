@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "../lib/z";
 
 export const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 export const ISO_DATETIME =

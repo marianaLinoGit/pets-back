@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "../lib/z";
 
 export const AlertsQuerySchema = z.object({
 	days: z.coerce.number().int().min(1).max(365).optional(),

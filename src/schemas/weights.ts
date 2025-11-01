@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "../lib/z";
 
 export const WeightCreateBodySchema = z.object({
 	weightKg: z.number().nonnegative(),

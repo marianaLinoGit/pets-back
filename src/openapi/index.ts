@@ -3,7 +3,7 @@ import {
 	OpenApiGeneratorV3,
 	extendZodWithOpenApi,
 } from "@asteasolutions/zod-to-openapi";
-import { z } from "zod";
+import { z } from "../lib/z";
 import { registerComponentsAlerts } from "./components/alerts";
 import { registerComponentsConditions } from "./components/conditions";
 import { registerComponentsGlycemia } from "./components/glycemia";

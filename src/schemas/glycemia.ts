@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "../lib/z";
 import { DateOnly, DateTime, TimeHHmm } from "./common";
 
 export const GlySessionCreateByTimesSchema = z.object({

@@ -1,5 +1,5 @@
 import { OpenAPIRegistry } from "@asteasolutions/zod-to-openapi";
-import { z } from "zod";
+import { z } from "../../lib/z";
 import {
 	ConditionCreateSchema,
 	ConditionStatus,

@@ -1,5 +1,5 @@
 import { OpenAPIRegistry } from "@asteasolutions/zod-to-openapi";
-import { z } from "zod";
+import { z } from "../../lib/z";
 import { TreatmentCreateSchema } from "../../schemas";
 import { TreatmentSchema } from "../components/treatments";
 

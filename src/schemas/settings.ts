@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "../lib/z";
 
 export const HexColor = z.string().regex(/^#([0-9a-fA-F]{6})$/, "hex");
 
