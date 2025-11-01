@@ -28,11 +28,21 @@ alerts.get("/due", zValidator("query", AlertsQuerySchema), async (c) => {
 	).all();
 
 	const birthdays = (pets.results || [])
-		.map((p: any) => ({
-			pet_id: p.id,
-			pet_name: p.name,
-			at: nextBirthdayFromDate(p.birth_date as string, offsetMinutes),
-		}))
+		.map((p: any) => {
+			const at = nextBirthdayFromDate(
+				p.birth_date as string,
+				offsetMinutes,
+			);
+			const turns =
+				new Date(at).getUTCFullYear() -
+				new Date(p.birth_date as string).getUTCFullYear();
+			return {
+				pet_id: p.id,
+				pet_name: p.name,
+				at,
+				turns,
+			};
+		})
 		.filter((x: any) => x.at <= untilIso);
 
 	const soon = new Date(now.getTime() + minutes * 60 * 1000).toISOString();
