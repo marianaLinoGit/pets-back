@@ -166,3 +166,16 @@ pets.post(
 		return c.json({ id: wid }, r.success ? 201 : 500);
 	},
 );
+
+pets.delete("/:id/weights/:wid", async (c) => {
+	const petId = c.req.param("id");
+	const wid = c.req.param("wid");
+	const r = await c.env.DB.prepare(
+		"DELETE FROM pet_weights WHERE id = ?1 AND pet_id = ?2",
+	)
+		.bind(wid, petId)
+		.run();
+	if ((r.meta?.changes || 0) === 0)
+		return c.json({ error: "not_found" }, 404);
+	return c.json({ deleted: true });
+});
