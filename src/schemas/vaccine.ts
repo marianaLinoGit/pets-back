@@ -1,5 +1,6 @@
 import { z } from "../lib/z";
 import { DateOnly } from "./common";
+import { SpeciesEnum } from "./lab";
 
 export const VaccineSpecies = z.enum(["dog", "cat", "other"]);
 
@@ -21,11 +22,20 @@ const strMin1Opt = z
 
 export const VaccineTypeCreateSchema = z.object({
 	name: z.string().min(1),
-	species: z.enum(["dog", "cat", "other"]).optional().nullable(),
-	total_doses: z.number().int().min(1),
-	description: z.string().optional().nullable(),
-	brand: z.string().nullable().optional(),
-	notes: z.string().nullable().optional(),
+	species: SpeciesEnum,
+	totalDoses: z.number().int().min(1),
+	brand: z.string().trim().min(1).nullable().optional(),
+	description: z.string().trim().nullable().optional(),
+	notes: z.string().trim().nullable().optional(),
+});
+
+export const VaccineTypeUpdateSchema = z.object({
+	name: z.string().min(1).optional(),
+	species: SpeciesEnum.optional(),
+	totalDoses: z.number().int().min(1).optional(),
+	brand: z.string().trim().nullable().optional(),
+	description: z.string().trim().nullable().optional(),
+	notes: z.string().trim().nullable().optional(),
 });
 
 export const VaccineTypeUpdateInSchema = z
@@ -118,5 +128,6 @@ export const VaccineApplicationUpdateSchema = z
 	.refine((o) => Object.keys(o).length > 0, { message: "empty" });
 
 export type VaccineTypeCreate = z.infer<typeof VaccineTypeCreateSchema>;
+export type VaccineTypeUpdate = z.infer<typeof VaccineTypeUpdateSchema>;
 export type VaccineTypeUpdateIn = z.infer<typeof VaccineTypeUpdateInSchema>;
 export type VaccineTypeRow = z.infer<typeof VaccineTypeRowSchema>;
