@@ -38,8 +38,13 @@ vaccines.get("/types", async (c) => {
 		params.push(`%${q}%`, `%${q}%`, `%${q}%`);
 	}
 	if (species) {
-		where.push("species = ?");
-		params.push(species);
+		if (species === "dog" || species === "cat") {
+			where.push("(species = ? OR species = 'dog_cat')");
+			params.push(species);
+		} else {
+			where.push("species = ?");
+			params.push(species);
+		}
 	}
 
 	const sql =
