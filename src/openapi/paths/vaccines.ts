@@ -11,6 +11,7 @@ import {
 } from "../components/vaccines";
 
 export function registerPathsVaccine(registry: OpenAPIRegistry) {
+	// POST /vaccines/types
 	registry.registerPath({
 		method: "post",
 		path: "/vaccines/types",
@@ -36,6 +37,7 @@ export function registerPathsVaccine(registry: OpenAPIRegistry) {
 		},
 	});
 
+	// GET /vaccines/types
 	registry.registerPath({
 		method: "get",
 		path: "/vaccines/types",
@@ -75,6 +77,7 @@ export function registerPathsVaccine(registry: OpenAPIRegistry) {
 		},
 	});
 
+	// POST /vaccines/applications
 	registry.registerPath({
 		method: "post",
 		path: "/vaccines/applications",
@@ -101,6 +104,7 @@ export function registerPathsVaccine(registry: OpenAPIRegistry) {
 		},
 	});
 
+	// GET /vaccines/applications
 	registry.registerPath({
 		method: "get",
 		path: "/vaccines/applications",
