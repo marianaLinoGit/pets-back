@@ -23,7 +23,7 @@ glycemia.get("/sessions", async (c) => {
 		from: z
 			.string()
 			.regex(/^\d{4}-\d{2}-\d{2}$/)
-			.optional(), // YYYY-MM-DD
+			.optional(),
 		to: z
 			.string()
 			.regex(/^\d{4}-\d{2}-\d{2}$/)
@@ -67,7 +67,6 @@ glycemia.get("/sessions", async (c) => {
 		where.push("pet_id = ?");
 		params.push(petId);
 	}
-
 	if (from && to) {
 		where.push("session_date BETWEEN ? AND ?");
 		params.push(from, to);
@@ -78,18 +77,15 @@ glycemia.get("/sessions", async (c) => {
 		where.push("session_date <= ?");
 		params.push(to);
 	} else if (futureOnly) {
-		// usa "hoje" em UTC do SQLite; se você quiser base local,
-		// mande `from` já normalizado do front.
 		where.push("session_date >= DATE('now')");
 	}
 
 	const sql =
 		`SELECT id, pet_id, session_date, notes, created_at, updated_at
-	   FROM glycemic_curve_sessions` +
+     FROM glycemic_curve_sessions` +
 		(where.length ? ` WHERE ${where.join(" AND ")}` : "") +
-		// janela futura: ordena crescente; sem janela, mantém seu comportamento original
 		` ORDER BY session_date ${from || to || futureOnly ? "ASC" : "DESC"}
-		LIMIT ? OFFSET ?`;
+      LIMIT ? OFFSET ?`;
 
 	params.push(limit, offset);
 
