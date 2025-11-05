@@ -9,6 +9,7 @@ import {
 	VaccineApplicationUpdateSchema,
 	VaccineTypeCreateSchema,
 	VaccineTypeUpdateInSchema,
+	VaccinesDueQuerySchema,
 } from "../schemas";
 import { SpeciesEnum } from "../schemas/common";
 
@@ -34,7 +35,9 @@ vaccines.get("/types", async (c) => {
 	const params: any[] = [];
 
 	if (q) {
-		where.push("(name_biz LIKE ? OR description LIKE ? OR brand LIKE ?)");
+		where.push(
+			"(name_biz LIKE ? OR description LIKE ? OR COALESCE(brand,'') LIKE ?)",
+		);
 		params.push(`%${q}%`, `%${q}%`, `%${q}%`);
 	}
 	if (species) {
@@ -49,16 +52,16 @@ vaccines.get("/types", async (c) => {
 
 	const sql =
 		`SELECT id,
-            name,
-            name_biz AS name_biz,
-            species,
-            total_doses,
-            brand,
-            description,
-            notes,
-            created_at,
-            updated_at
-       FROM vaccine_types` +
+          name,
+          name_biz AS name_biz,
+          species,
+          total_doses,
+          brand,
+          description,
+          notes,
+          created_at,
+          updated_at
+     FROM vaccine_types` +
 		(where.length ? ` WHERE ${where.join(" AND ")}` : "") +
 		` ORDER BY name_biz ASC`;
 
