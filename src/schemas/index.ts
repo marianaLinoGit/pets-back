@@ -7,4 +7,4 @@ export * from "./pet";
 export * from "./settings";
 export * from "./treatment";
 export * from "./vaccine";
-export * from "./vet";
+export * from "./vet-visits";
