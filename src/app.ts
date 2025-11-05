@@ -10,7 +10,7 @@ import { pets } from "./routes/pets";
 import { settings } from "./routes/settings";
 import { treatments } from "./routes/treatments";
 import { vaccines } from "./routes/vaccines";
-import { vet } from "./routes/vet";
+import { vetVisits } from "./routes/vet-visits";
 
 type Env = { Bindings: { DB: D1Database; API_KEY?: string } };
 
@@ -24,7 +24,7 @@ app.route("/glycemia", glycemia);
 app.route("/lab", lab);
 app.route("/vaccines", vaccines);
 app.route("/treatments", treatments);
-app.route("/vet", vet);
+app.route("/vet-visits", vetVisits);
 app.route("/alerts", alerts);
 app.route("/settings", settings);
 app.route("/", conditions);

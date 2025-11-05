@@ -6,7 +6,7 @@ import { okArray } from "../components/common";
 export function registerPathsVet(registry: OpenAPIRegistry) {
 	registry.registerPath({
 		method: "post",
-		path: "/vet/visits",
+		path: "/vet-visits",
 		tags: ["Vet"],
 		summary: "Registra visita ao veterinário",
 		request: {
@@ -30,7 +30,7 @@ export function registerPathsVet(registry: OpenAPIRegistry) {
 
 	registry.registerPath({
 		method: "get",
-		path: "/vet/visits",
+		path: "/vet-visits",
 		tags: ["Vet"],
 		summary: "Lista visitas",
 		request: { query: z.object({ petId: z.string().optional() }) },
