@@ -75,6 +75,14 @@ conditions.put(
 		const id = c.req.param("id");
 		const b = c.req.valid("json") as any;
 		const ts = nowIso();
+
+		const exists = await c.env.DB.prepare(
+			"SELECT 1 FROM conditions WHERE id=?1",
+		)
+			.bind(id)
+			.first();
+		if (!exists) return c.json({ error: "not_found" }, 404);
+
 		const r = await c.env.DB.prepare(
 			`UPDATE conditions SET
          name = COALESCE(?2,name),
@@ -115,7 +123,7 @@ conditions.delete("/conditions/:id", async (c) => {
 		.bind(id)
 		.run();
 	if (!r.success) return c.json({ deleted: false }, 500);
-	return c.json({ deleted: true });
+	return c.json({ deleted: (r.meta.changes ?? 0) > 0 });
 });
 
 conditions.post(
@@ -123,6 +131,12 @@ conditions.post(
 	zValidator("json", ConditionLinkLabTypeSchema),
 	async (c) => {
 		const id = c.req.param("id");
+		const own = await c.env.DB.prepare(
+			"SELECT 1 FROM conditions WHERE id=?1",
+		)
+			.bind(id)
+			.first();
+		if (!own) return c.json({ error: "not_found" }, 404);
 		const b = c.req.valid("json");
 		const r = await c.env.DB.prepare(
 			"INSERT OR IGNORE INTO condition_lab_types (condition_id, lab_type_id) VALUES (?1,?2)",
@@ -136,13 +150,17 @@ conditions.post(
 
 conditions.delete("/conditions/:id/lab-types/:labTypeId", async (c) => {
 	const { id, labTypeId } = c.req.param();
+	const own = await c.env.DB.prepare("SELECT 1 FROM conditions WHERE id=?1")
+		.bind(id)
+		.first();
+	if (!own) return c.json({ error: "not_found" }, 404);
 	const r = await c.env.DB.prepare(
 		"DELETE FROM condition_lab_types WHERE condition_id=?1 AND lab_type_id=?2",
 	)
 		.bind(id, labTypeId)
 		.run();
 	if (!r.success) return c.json({ unlinked: false }, 500);
-	return c.json({ unlinked: true });
+	return c.json({ unlinked: (r.meta.changes ?? 0) > 0 });
 });
 
 conditions.post(
@@ -150,6 +168,12 @@ conditions.post(
 	zValidator("json", ConditionLinkLabResultSchema),
 	async (c) => {
 		const id = c.req.param("id");
+		const own = await c.env.DB.prepare(
+			"SELECT 1 FROM conditions WHERE id=?1",
+		)
+			.bind(id)
+			.first();
+		if (!own) return c.json({ error: "not_found" }, 404);
 		const b = c.req.valid("json");
 		const r = await c.env.DB.prepare(
 			"INSERT OR IGNORE INTO condition_lab_results (condition_id, lab_result_id) VALUES (?1,?2)",
@@ -163,17 +187,25 @@ conditions.post(
 
 conditions.delete("/conditions/:id/lab-results/:labResultId", async (c) => {
 	const { id, labResultId } = c.req.param();
+	const own = await c.env.DB.prepare("SELECT 1 FROM conditions WHERE id=?1")
+		.bind(id)
+		.first();
+	if (!own) return c.json({ error: "not_found" }, 404);
 	const r = await c.env.DB.prepare(
 		"DELETE FROM condition_lab_results WHERE condition_id=?1 AND lab_result_id=?2",
 	)
 		.bind(id, labResultId)
 		.run();
 	if (!r.success) return c.json({ unlinked: false }, 500);
-	return c.json({ unlinked: true });
+	return c.json({ unlinked: (r.meta.changes ?? 0) > 0 });
 });
 
 conditions.post("/conditions/:id/treatments/:treatmentId", async (c) => {
 	const { id, treatmentId } = c.req.param();
+	const own = await c.env.DB.prepare("SELECT 1 FROM conditions WHERE id=?1")
+		.bind(id)
+		.first();
+	if (!own) return c.json({ error: "not_found" }, 404);
 	const r = await c.env.DB.prepare(
 		"INSERT OR IGNORE INTO condition_treatments (condition_id, treatment_id) VALUES (?1,?2)",
 	)
@@ -185,17 +217,25 @@ conditions.post("/conditions/:id/treatments/:treatmentId", async (c) => {
 
 conditions.delete("/conditions/:id/treatments/:treatmentId", async (c) => {
 	const { id, treatmentId } = c.req.param();
+	const own = await c.env.DB.prepare("SELECT 1 FROM conditions WHERE id=?1")
+		.bind(id)
+		.first();
+	if (!own) return c.json({ error: "not_found" }, 404);
 	const r = await c.env.DB.prepare(
 		"DELETE FROM condition_treatments WHERE condition_id=?1 AND treatment_id=?2",
 	)
 		.bind(id, treatmentId)
 		.run();
 	if (!r.success) return c.json({ unlinked: false }, 500);
-	return c.json({ unlinked: true });
+	return c.json({ unlinked: (r.meta.changes ?? 0) > 0 });
 });
 
 conditions.get("/conditions/:id/notes", async (c) => {
 	const id = c.req.param("id");
+	const own = await c.env.DB.prepare("SELECT 1 FROM conditions WHERE id=?1")
+		.bind(id)
+		.first();
+	if (!own) return c.json({ error: "not_found" }, 404);
 	const rows = await c.env.DB.prepare(
 		"SELECT * FROM condition_notes WHERE condition_id = ?1 ORDER BY created_at DESC",
 	)
@@ -209,6 +249,12 @@ conditions.post(
 	zValidator("json", ConditionNoteCreateSchema),
 	async (c) => {
 		const id = c.req.param("id");
+		const own = await c.env.DB.prepare(
+			"SELECT 1 FROM conditions WHERE id=?1",
+		)
+			.bind(id)
+			.first();
+		if (!own) return c.json({ error: "not_found" }, 404);
 		const b = c.req.valid("json") as any;
 		const noteId = crypto.randomUUID();
 		const ts = nowIso();
@@ -275,16 +321,20 @@ conditions.delete("/condition-notes/:noteId", async (c) => {
 		.bind(noteId)
 		.run();
 	if (!r.success) return c.json({ deleted: false }, 500);
-	return c.json({ deleted: true });
+	return c.json({ deleted: (r.meta.changes ?? 0) > 0 });
 });
 
 conditions.get("/conditions/:id/lab-types", async (c) => {
 	const id = c.req.param("id");
+	const own = await c.env.DB.prepare("SELECT 1 FROM conditions WHERE id=?1")
+		.bind(id)
+		.first();
+	if (!own) return c.json({ error: "not_found" }, 404);
 	const rows = await c.env.DB.prepare(
 		`SELECT t.* FROM condition_lab_types lt
-	   JOIN lab_test_types t ON t.id = lt.lab_type_id
-	   WHERE lt.condition_id = ?1
-	   ORDER BY t.name`,
+     JOIN lab_test_types t ON t.id = lt.lab_type_id
+     WHERE lt.condition_id = ?1
+     ORDER BY t.name`,
 	)
 		.bind(id)
 		.all();
@@ -293,11 +343,15 @@ conditions.get("/conditions/:id/lab-types", async (c) => {
 
 conditions.get("/conditions/:id/lab-results", async (c) => {
 	const id = c.req.param("id");
+	const own = await c.env.DB.prepare("SELECT 1 FROM conditions WHERE id=?1")
+		.bind(id)
+		.first();
+	if (!own) return c.json({ error: "not_found" }, 404);
 	const rows = await c.env.DB.prepare(
 		`SELECT r.* FROM condition_lab_results lr
-	   JOIN lab_results r ON r.id = lr.lab_result_id
-	   WHERE lr.condition_id = ?1
-	   ORDER BY r.measured_at DESC`,
+     JOIN lab_results r ON r.id = lr.lab_result_id
+     WHERE lr.condition_id = ?1
+     ORDER BY r.collected_at DESC, r.created_at DESC`,
 	)
 		.bind(id)
 		.all();
@@ -306,11 +360,15 @@ conditions.get("/conditions/:id/lab-results", async (c) => {
 
 conditions.get("/conditions/:id/treatments", async (c) => {
 	const id = c.req.param("id");
+	const own = await c.env.DB.prepare("SELECT 1 FROM conditions WHERE id=?1")
+		.bind(id)
+		.first();
+	if (!own) return c.json({ error: "not_found" }, 404);
 	const rows = await c.env.DB.prepare(
 		`SELECT t.* FROM condition_treatments ct
-	   JOIN treatments t ON t.id = ct.treatment_id
-	   WHERE ct.condition_id = ?1
-	   ORDER BY t.administered_at DESC`,
+     JOIN pet_treatments t ON t.id = ct.treatment_id
+     WHERE ct.condition_id = ?1
+     ORDER BY t.administered_at DESC, t.created_at DESC`,
 	)
 		.bind(id)
 		.all();
