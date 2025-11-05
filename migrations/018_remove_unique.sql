@@ -1,4 +1,4 @@
-BEGIN TRANSACTION;
+PRAGMA foreign_keys = OFF;
 
 ALTER TABLE vaccine_types ADD COLUMN name_biz TEXT;
 
@@ -8,4 +8,4 @@ UPDATE vaccine_types
 CREATE INDEX IF NOT EXISTS ix_vaccine_types_species_namebiz_brand
   ON vaccine_types (species, name_biz, brand);
 
-COMMIT;
+PRAGMA foreign_keys = ON;

@@ -1,4 +1,4 @@
-BEGIN TRANSACTION;
+PRAGMA foreign_keys = OFF;
 
 CREATE TABLE IF NOT EXISTS conditions (
   id TEXT PRIMARY KEY,
@@ -64,4 +64,4 @@ CREATE TABLE IF NOT EXISTS condition_notes (
 CREATE INDEX IF NOT EXISTS idx_condition_notes_condition ON condition_notes(condition_id);
 CREATE INDEX IF NOT EXISTS idx_condition_notes_created ON condition_notes(condition_id, created_at DESC);
 
-COMMIT;
+PRAGMA foreign_keys = ON;

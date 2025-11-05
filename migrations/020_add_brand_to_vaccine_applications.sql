@@ -1,4 +1,4 @@
-BEGIN TRANSACTION;
+PRAGMA foreign_keys = OFF;
 
 ALTER TABLE vaccine_applications ADD COLUMN brand TEXT;
 
@@ -13,4 +13,4 @@ WHERE brand IS NULL;
 UPDATE vaccine_applications
 SET brand = COALESCE(brand, '');
 
-COMMIT;
+PRAGMA foreign_keys = ON;

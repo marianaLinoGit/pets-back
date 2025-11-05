@@ -1,5 +1,5 @@
 -- amplia species para aceitar 'dog_cat' em vaccine_types
-BEGIN TRANSACTION;
+PRAGMA foreign_keys = OFF;
 
 PRAGMA foreign_keys=OFF;
 
@@ -32,4 +32,4 @@ CREATE UNIQUE INDEX IF NOT EXISTS ux_vt_species_name_brand
 
 PRAGMA foreign_keys=ON;
 
-COMMIT;
+PRAGMA foreign_keys = ON;

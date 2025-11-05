@@ -1,4 +1,4 @@
-BEGIN TRANSACTION;
+PRAGMA foreign_keys = OFF;
 
 CREATE TABLE lab_test_types_new (
   id TEXT PRIMARY KEY,
@@ -32,4 +32,4 @@ ALTER TABLE lab_test_types_new RENAME TO lab_test_types;
 CREATE INDEX IF NOT EXISTS idx_lab_test_types_name ON lab_test_types(name);
 CREATE INDEX IF NOT EXISTS idx_lab_test_types_species ON lab_test_types(species);
 
-COMMIT;
+PRAGMA foreign_keys = ON;

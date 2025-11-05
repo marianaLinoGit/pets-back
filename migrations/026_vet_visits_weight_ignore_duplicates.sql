@@ -3,7 +3,7 @@
 
 PRAGMA foreign_keys = ON;
 
-BEGIN TRANSACTION;
+PRAGMA foreign_keys = OFF;
 
 -- Remove o gatilho antigo, se existir
 DROP TRIGGER IF EXISTS trg_vet_visits_insert_weight;
@@ -23,4 +23,4 @@ BEGIN
   );
 END;
 
-COMMIT;
+PRAGMA foreign_keys = ON;

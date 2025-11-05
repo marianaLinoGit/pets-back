@@ -1,7 +1,7 @@
-BEGIN TRANSACTION;
+PRAGMA foreign_keys = OFF;
 
 CREATE TABLE IF NOT EXISTS user_settings (
-  user_id    TEXT PRIMARY KEY,
+  user_id     TEXT PRIMARY KEY,
   theme_color TEXT,
   email       TEXT,
   phone       TEXT,
@@ -11,4 +11,4 @@ CREATE TABLE IF NOT EXISTS user_settings (
 
 CREATE INDEX IF NOT EXISTS idx_user_settings_email ON user_settings(email);
 
-COMMIT;
+PRAGMA foreign_keys = ON;

@@ -1,89 +1,73 @@
-PRAGMA foreign_keys=OFF;
+PRAGMA foreign_keys = ON;
 
-BEGIN TRANSACTION;
-
-/* 1) Nova tabela vaccine_types (sem UNIQUE em name) */
-CREATE TABLE IF NOT EXISTS vaccine_types_new (
-  id           TEXT PRIMARY KEY,
-  name         TEXT NOT NULL,
-  name_biz     TEXT NOT NULL,
-  species      TEXT NOT NULL CHECK (species IN ('dog','cat','other')),
-  total_doses  INTEGER NOT NULL CHECK (total_doses >= 1),
-  brand        TEXT,
-  description  TEXT,
-  notes        TEXT,
-  created_at   TEXT NOT NULL,
-  updated_at   TEXT NOT NULL
+CREATE TABLE IF NOT EXISTS vet_visits (
+  id TEXT PRIMARY KEY,
+  pet_id TEXT NOT NULL REFERENCES pets(id) ON DELETE CASCADE,
+  visited_at TEXT NOT NULL,
+  is_emergency INTEGER NOT NULL DEFAULT 0,
+  visit_type TEXT,
+  reason TEXT,
+  weight_kg REAL,
+  temp_c REAL,
+  heart_rate_bpm INTEGER,
+  resp_rate_bpm INTEGER,
+  capillary_refill_sec REAL,
+  pain_score INTEGER,
+  exam_summary TEXT,
+  findings TEXT,
+  diagnosis TEXT,
+  differential_dx TEXT,
+  procedures_done TEXT,
+  meds_administered TEXT,
+  prescriptions TEXT,
+  allergies TEXT,
+  repro_status TEXT,
+  next_visit_at TEXT,
+  clinic TEXT,
+  vet_name TEXT,
+  cost_total REAL,
+  paid_total REAL,
+  payment_method TEXT,
+  notes TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  deleted_at TEXT
 );
 
-/* Copia dados da tabela atual (usa total_doses existente; nada de totalDoses) */
-INSERT INTO vaccine_types_new (
-  id, name, name_biz, species, total_doses, brand, description, notes, created_at, updated_at
-)
-SELECT
-  id,
-  COALESCE(name, name_biz, '')                      AS name,
-  COALESCE(name_biz, name, '')                      AS name_biz,
-  species,
-  COALESCE(total_doses, 1)                          AS total_doses,
-  brand,
-  description,
-  notes,
-  COALESCE(created_at, datetime('now'))             AS created_at,
-  COALESCE(updated_at, COALESCE(created_at, datetime('now'))) AS updated_at
-FROM vaccine_types;
+CREATE INDEX IF NOT EXISTS idx_vet_visits_pet ON vet_visits(pet_id, visited_at);
 
-/* 2) Reconstrói vaccine_applications ANTES de derrubar a antiga vaccine_types */
-CREATE TABLE IF NOT EXISTS vaccine_applications_new (
-  id               TEXT PRIMARY KEY,
-  pet_id           TEXT NOT NULL,
-  vaccine_type_id  TEXT NOT NULL,
-  dose_number      INTEGER NOT NULL,
-  administered_at  TEXT NOT NULL,
-  administered_by  TEXT,
-  clinic           TEXT,
-  next_dose_at     TEXT,
-  notes            TEXT,
-  brand            TEXT,
-  created_at       TEXT NOT NULL
-  -- A FK será recriada após o rename das tabelas, para evitar validação agora
+CREATE TABLE IF NOT EXISTS vet_visit_vaccines (
+  id TEXT PRIMARY KEY,
+  visit_id TEXT NOT NULL REFERENCES vet_visits(id) ON DELETE CASCADE,
+  vaccine_application_id TEXT NOT NULL REFERENCES vaccine_applications(id) ON DELETE CASCADE,
+  created_at TEXT NOT NULL
 );
 
-/* Copia todos os registros (sem validar FK durante a cópia) */
-INSERT INTO vaccine_applications_new (
-  id, pet_id, vaccine_type_id, dose_number, administered_at, administered_by,
-  clinic, next_dose_at, notes, brand, created_at
-)
-SELECT
-  id, pet_id, vaccine_type_id, dose_number, administered_at, administered_by,
-  clinic, next_dose_at, notes, brand, created_at
-FROM vaccine_applications;
+CREATE INDEX IF NOT EXISTS idx_vvv_visit ON vet_visit_vaccines(visit_id);
+CREATE INDEX IF NOT EXISTS idx_vvv_app ON vet_visit_vaccines(vaccine_application_id);
 
-/* 3) DROP na tabela referenciadora primeiro, depois na referenciada */
-DROP TABLE vaccine_applications;
-DROP TABLE vaccine_types;
+CREATE TABLE IF NOT EXISTS vet_visit_labs (
+  id TEXT PRIMARY KEY,
+  visit_id TEXT NOT NULL REFERENCES vet_visits(id) ON DELETE CASCADE,
+  lab_result_id TEXT NOT NULL REFERENCES lab_results(id) ON DELETE CASCADE,
+  created_at TEXT NOT NULL
+);
 
-/* 4) RENAME das novas para os nomes definitivos */
-ALTER TABLE vaccine_types_new RENAME TO vaccine_types;
-ALTER TABLE vaccine_applications_new RENAME TO vaccine_applications;
+CREATE INDEX IF NOT EXISTS idx_vvl_visit ON vet_visit_labs(visit_id);
+CREATE INDEX IF NOT EXISTS idx_vvl_lab ON vet_visit_labs(lab_result_id);
 
-/* 5) Índices/constraints finais */
--- Índice único (espécie + nome de negócio + marca normalizada)
-CREATE UNIQUE INDEX IF NOT EXISTS ux_vt_species_namebiz_brand_norm
-  ON vaccine_types (species, name_biz, COALESCE(brand,''));
+CREATE TABLE IF NOT EXISTS lab_orders (
+  id TEXT PRIMARY KEY,
+  visit_id TEXT NOT NULL REFERENCES vet_visits(id) ON DELETE CASCADE,
+  created_at TEXT NOT NULL
+);
 
-CREATE INDEX IF NOT EXISTS idx_vt_name_biz ON vaccine_types(name_biz);
-CREATE INDEX IF NOT EXISTS idx_vt_species  ON vaccine_types(species);
-CREATE INDEX IF NOT EXISTS idx_vt_brand    ON vaccine_types(brand);
+CREATE TABLE IF NOT EXISTS lab_order_items (
+  id TEXT PRIMARY KEY,
+  order_id TEXT NOT NULL REFERENCES lab_orders(id) ON DELETE CASCADE,
+  lab_type_id TEXT NOT NULL REFERENCES lab_types(id) ON DELETE RESTRICT,
+  notes TEXT,
+  created_at TEXT NOT NULL
+);
 
--- FK agora que os nomes definitivos já existem
-CREATE INDEX IF NOT EXISTS idx_va_vt ON vaccine_applications(vaccine_type_id);
--- Se quiser FK materializada (opcional em D1, mas costuma funcionar):
--- Atenção: SQLite não permite adicionar FK com ALTER simples; então recriamos a constraint via CHECK-like ou deixamos sem.
--- Caso sua base original já tivesse FK e você faça questão de mantê-la, troque a criação da applications_new
--- por um CREATE TABLE ... com "FOREIGN KEY (vaccine_type_id) REFERENCES vaccine_types(id) ON DELETE RESTRICT"
--- (aqui deixamos sem FK física para não reativar validação durante o swap).
-
-COMMIT;
-
-PRAGMA foreign_keys=ON;
+CREATE INDEX IF NOT EXISTS idx_lab_order_items_order ON lab_order_items(order_id);

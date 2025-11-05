@@ -4,7 +4,7 @@
 
 PRAGMA foreign_keys = OFF;
 
-BEGIN TRANSACTION;
+PRAGMA foreign_keys = OFF;
 
 -- 1) Drop das tabelas filhas que referenciam vet_visits (se existirem)
 DROP TABLE IF EXISTS vet_visit_vaccines;
@@ -114,6 +114,6 @@ BEGIN
   );
 END;
 
-COMMIT;
+PRAGMA foreign_keys = ON;
 
 PRAGMA foreign_keys = ON;

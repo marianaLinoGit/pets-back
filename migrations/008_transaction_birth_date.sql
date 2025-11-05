@@ -1,4 +1,6 @@
-BEGIN TRANSACTION;
+PRAGMA foreign_keys = OFF;
+
+DROP TABLE IF EXISTS pets_new;
 
 CREATE TABLE pets_new (
   id TEXT PRIMARY KEY,
@@ -40,10 +42,10 @@ FROM pets;
 DROP TABLE pets;
 ALTER TABLE pets_new RENAME TO pets;
 
-CREATE INDEX idx_pets_name ON pets(name);
-CREATE INDEX idx_pets_birth_date ON pets(birth_date);
-CREATE INDEX idx_pets_adoption_date ON pets(adoption_date);
-CREATE INDEX idx_pets_species ON pets(species);
-CREATE INDEX idx_pets_gender ON pets(gender);
+CREATE INDEX IF NOT EXISTS idx_pets_name ON pets(name);
+CREATE INDEX IF NOT EXISTS idx_pets_birth_date ON pets(birth_date);
+CREATE INDEX IF NOT EXISTS idx_pets_adoption_date ON pets(adoption_date);
+CREATE INDEX IF NOT EXISTS idx_pets_species ON pets(species);
+CREATE INDEX IF NOT EXISTS idx_pets_gender ON pets(gender);
 
-COMMIT;
+PRAGMA foreign_keys = ON;
