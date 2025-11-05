@@ -7,22 +7,18 @@ export const AlertKindEnum = z.enum([
 	"treatments",
 ]);
 
-export const AlertsQuerySchema = z
-	.object({
-		days: z.coerce.number().int().min(1).max(365).optional(),
-		minutes: z.coerce.number().int().min(1).max(120).optional(),
-		offsetMinutes: z.coerce.number().int().min(-720).max(720).optional(),
-		petId: z.string().uuid().optional(),
-		kinds: z
-			.preprocess(
-				(v) => (typeof v === "string" ? v.split(",") : v),
-				z.array(AlertKindEnum),
-			)
-			.default(["birthdays", "vaccines", "glycemia", "treatments"]),
-	})
-	.refine((q) => !(q.days && q.minutes), {
-		message: "Use apenas days OU minutes",
-	});
+export const AlertsQuerySchema = z.object({
+	days: z.coerce.number().int().min(1).max(365),
+	minutes: z.coerce.number().int().min(1).max(120).optional(),
+	offsetMinutes: z.coerce.number().int().min(-720).max(720).optional(),
+	petId: z.string().uuid().optional(),
+	kinds: z
+		.preprocess(
+			(v) => (typeof v === "string" ? v.split(",") : v),
+			z.array(AlertKindEnum),
+		)
+		.default(["birthdays", "vaccines", "glycemia", "treatments"]),
+});
 
 export const VaccinesDueQuerySchema = z.object({
 	from: z
