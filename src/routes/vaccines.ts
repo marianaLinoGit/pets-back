@@ -1,4 +1,3 @@
-// src/routes/vaccines.ts
 import type { D1Database } from "@cloudflare/workers-types";
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
@@ -74,9 +73,7 @@ vaccines.post(
 
 		const nameBiz = b.name.trim();
 		const brandNorm = (b.brand ?? "").trim();
-		const species = b.species;
 
-		// Evita duplicata exata por espécie + name_biz + brand normalizada
 		const exists = await c.env.DB.prepare(
 			`SELECT 1 FROM vaccine_types
         WHERE species=?1 AND name_biz=?2 AND COALESCE(brand,'')=?3
@@ -94,10 +91,10 @@ vaccines.post(
 		)
 			.bind(
 				id,
-				nameBiz, // name (livre, não-único)
-				nameBiz, // name_biz (usado em UI e na UNIQUE composta)
+				nameBiz,
+				nameBiz,
 				b.species,
-				b.totalDoses, // mapeia camel->snake
+				b.totalDoses,
 				brandNorm || null,
 				b.description ?? null,
 				b.notes ?? null,
@@ -116,11 +113,8 @@ vaccines.put(
 	zValidator("json", VaccineTypeUpdateInSchema),
 	async (c) => {
 		const id = c.req.param("id");
-
-		// Normalizamos o input usando o mesmo schema de criação para campos base
 		const body = c.req.valid("json") as any;
 
-		// Carrega o atual para comparação/normalização
 		const cur = await c.env.DB.prepare(
 			`SELECT name, name_biz, species, COALESCE(brand,'') AS brand
          FROM vaccine_types WHERE id=?1`,
@@ -148,7 +142,6 @@ vaccines.put(
 					: String(body.brand).trim()
 				: curBrand;
 
-		// Checa duplicidade composta (espécie + name_biz + brand normalizada)
 		const dupe = await c.env.DB.prepare(
 			`SELECT 1 FROM vaccine_types
          WHERE species=?1 AND name_biz=?2 AND COALESCE(brand,'')=?3 AND id<>?4
@@ -175,11 +168,9 @@ vaccines.put(
 		)
 			.bind(
 				id,
-				// name e name_biz sempre andam juntos quando "name" vem no corpo
 				body.name !== undefined ? nextName : null,
 				body.name !== undefined ? nextNameBiz : null,
 				body.species ?? null,
-				// aceita tanto total_doses quanto totalDoses do input (schema já normaliza)
 				body.total_doses ?? body.totalDoses ?? null,
 				body.brand !== undefined ? nextBrand || null : null,
 				body.description ?? null,
@@ -209,8 +200,6 @@ vaccines.put(
 		return c.json(out);
 	},
 );
-
-// ========== Applications ==========
 
 vaccines.post(
 	"/applications",
@@ -277,7 +266,6 @@ vaccines.get("/applications", async (c) => {
 	return c.json(rows.results || []);
 });
 
-// leitura individual exige petId (evita troca entre pets)
 vaccines.get("/applications/:id", async (c) => {
 	const id = c.req.param("id");
 	const petId = c.req.query("petId") || "";
