@@ -351,3 +351,41 @@ vaccines.put(
 		return c.json(out);
 	},
 );
+
+vaccines.get("/due", zValidator("query", VaccinesDueQuerySchema), async (c) => {
+	const q = c.req.valid("query") as any;
+	const from: string = q.from;
+	const to: string = q.to;
+	const includeOverdue: boolean = !!q.includeOverdue;
+	const petId: string | undefined = q.petId;
+
+	let sql =
+		"SELECT va.id, va.pet_id, p.name AS pet_name, vt.name_biz AS vaccine_name, " +
+		"va.dose_number, va.next_dose_at " +
+		"FROM vaccine_applications va " +
+		"JOIN pets p ON p.id = va.pet_id " +
+		"JOIN vaccine_types vt ON vt.id = va.vaccine_type_id " +
+		"WHERE va.next_dose_at IS NOT NULL";
+	const params: any[] = [];
+
+	if (includeOverdue) {
+		sql += " AND va.next_dose_at <= ?";
+		params.push(to);
+	} else {
+		sql += " AND va.next_dose_at BETWEEN ? AND ?";
+		params.push(from, to);
+	}
+
+	if (petId) {
+		sql += " AND va.pet_id = ?";
+		params.push(petId);
+	}
+
+	sql += " ORDER BY va.next_dose_at ASC, va.created_at ASC";
+
+	const rs = await c.env.DB.prepare(sql)
+		.bind(...params)
+		.all();
+
+	return c.json(rs.results || []);
+});
