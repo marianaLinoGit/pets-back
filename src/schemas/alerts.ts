@@ -24,6 +24,26 @@ export const AlertsQuerySchema = z
 		message: "Use apenas days OU minutes",
 	});
 
+export const VaccinesDueQuerySchema = z.object({
+	from: z
+		.string()
+		.regex(/^\d{4}-\d{2}-\d{2}$/, "from deve estar no formato YYYY-MM-DD"),
+	to: z
+		.string()
+		.regex(/^\d{4}-\d{2}-\d{2}$/, "to deve estar no formato YYYY-MM-DD"),
+	includeOverdue: z
+		.preprocess(
+			(v) =>
+				v === "1" ||
+				v === 1 ||
+				v === true ||
+				(typeof v === "string" && v.toLowerCase() === "true"),
+			z.boolean(),
+		)
+		.optional(),
+	petId: z.string().uuid().optional(),
+});
+
 export const AlertsDueResponseSchema = z.object({
 	birthdays: z
 		.array(
