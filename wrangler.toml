@@ -1,6 +1,15 @@
 name = "pet-api"
 main = "src/index.ts"
 compatibility_date = "2025-10-27"
+compatibility_flags = ["nodejs_compat"]
+minify = true
+
+routes = [
+  { pattern = "api.marianalino.com.br/*", zone_name = "marianalino.com.br" }
+]
+
+[observability]
+enabled = true
 
 [[d1_databases]]
 binding = "DB"
