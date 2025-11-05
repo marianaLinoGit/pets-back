@@ -1,8 +1,7 @@
 import { z } from "../lib/z";
-import { DateOnly } from "./common";
-import { SpeciesEnum } from "./lab";
+import { DateOnly, SpeciesEnum } from "./common";
 
-export const VaccineSpecies = z.enum(["dog", "cat", "other"]);
+export const VaccineSpecies = SpeciesEnum;
 
 const Trimmed = z.string().transform((s) => s.trim());
 

@@ -1,7 +1,5 @@
 import { z } from "../lib/z";
-import { DateTime } from "./common";
-
-export const SpeciesEnum = z.enum(["dog", "cat", "other"]);
+import { DateTime, SpeciesEnum } from "./common";
 
 const labValueSchema = z
 	.object({

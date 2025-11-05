@@ -8,10 +8,10 @@ import { z } from "../lib/z";
 import {
 	VaccineApplicationCreateSchema,
 	VaccineApplicationUpdateSchema,
-	VaccineSpecies,
 	VaccineTypeCreateSchema,
 	VaccineTypeUpdateInSchema,
 } from "../schemas";
+import { SpeciesEnum } from "../schemas/common";
 
 type Env = { Bindings: { DB: D1Database; API_KEY?: string } };
 
@@ -21,7 +21,7 @@ export const vaccines = new Hono<Env>();
 
 const QueryListSchema = z.object({
 	q: z.string().optional(),
-	species: VaccineSpecies.optional(),
+	species: SpeciesEnum.optional(),
 });
 
 vaccines.get("/types", async (c) => {
@@ -82,7 +82,7 @@ vaccines.post(
         WHERE species=?1 AND name_biz=?2 AND COALESCE(brand,'')=?3
         LIMIT 1`,
 		)
-			.bind(species, nameBiz, brandNorm)
+			.bind(b.species, nameBiz, brandNorm)
 			.first();
 
 		if (exists) return c.json({ error: "duplicate_name_brand" }, 409);
@@ -132,14 +132,15 @@ vaccines.put(
 
 		const curName: string = (cur as any).name || "";
 		const curNameBiz: string = (cur as any).name_biz || curName;
-		const curSpecies: "dog" | "cat" | "other" = (cur as any).species;
+		const curSpecies: z.infer<typeof SpeciesEnum> = (cur as any).species;
 		const curBrand: string = (cur as any).brand || "";
 
 		const nextName =
 			typeof body.name === "string" ? body.name.trim() : curName;
 		const nextNameBiz =
 			typeof body.name === "string" ? body.name.trim() : curNameBiz;
-		const nextSpecies = body.species ?? curSpecies;
+		const nextSpecies: z.infer<typeof SpeciesEnum> =
+			body.species ?? curSpecies;
 		const nextBrand =
 			body.brand !== undefined
 				? body.brand === null

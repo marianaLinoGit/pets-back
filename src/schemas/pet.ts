@@ -1,9 +1,9 @@
 import { z } from "../lib/z";
-import { DateOnly } from "./common";
+import { DateOnly, SpeciesEnum } from "./common";
 
 export const PetCreateSchema = z.object({
 	name: z.string().min(1),
-	species: z.enum(["dog", "cat", "other"]),
+	species: SpeciesEnum,
 	breed: z.string().optional().nullable(),
 	gender: z.enum(["M", "F", "N"]).optional().nullable(),
 	coat: z.string().optional().nullable(),
@@ -21,7 +21,7 @@ export const PetUpdateSchema = PetCreateSchema.partial();
 
 export const petsListQuerySchema = z.object({
 	q: z.string().optional(),
-	species: z.enum(["dog", "cat", "other"]).optional(),
+	species: SpeciesEnum.optional(),
 	gender: z.enum(["M", "F", "N"]).optional(),
 	sortBy: z.enum(["name", "birth_date", "adoption_date"]).optional(),
 	sortDir: z.enum(["asc", "desc"]).optional(),
