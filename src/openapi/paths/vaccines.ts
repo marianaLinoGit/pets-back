@@ -59,7 +59,8 @@ export function registerPathsVaccine(registry: OpenAPIRegistry) {
 						name: "species",
 						in: "query",
 						required: false,
-						description: "Filtro de espécie (dog/cat/other)",
+						description:
+							"Filtro de espécie (dog/cat/dog_cat/other)",
 					},
 				}).optional(),
 			}),
