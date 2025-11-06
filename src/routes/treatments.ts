@@ -22,14 +22,14 @@ treatments.post(
 		)
 			.bind(
 				id,
-				body.petId,
-				body.type,
-				body.typeLabel ?? null,
-				body.productName ?? null,
-				body.administeredAt,
-				body.nextDueAt ?? null,
-				body.doseInfo ?? null,
-				body.notes ?? null,
+				(body as any).petId,
+				(body as any).type,
+				(body as any).typeLabel ?? null,
+				(body as any).productName ?? null,
+				(body as any).administeredAt,
+				(body as any).nextDueAt ?? null,
+				(body as any).doseInfo ?? null,
+				(body as any).notes ?? null,
 				ts,
 			)
 			.run();

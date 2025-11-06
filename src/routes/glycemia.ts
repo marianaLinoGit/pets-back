@@ -112,20 +112,19 @@ glycemia.post(
 					sid,
 					body.petId,
 					body.sessionDate,
-					body.notes ?? null,
+					(body as any).notes ?? null,
 					ts,
 					ts,
 				)
 				.run();
 			if (!ins.success) return c.json({ error: "db_error" }, 500);
-
-			const warn = body.warnMinutesBefore ?? 10;
+			const warn = (body as any).warnMinutesBefore ?? 10;
 			for (let i = 0; i < 5; i++) {
 				const pid = crypto.randomUUID();
 				const expectedAt = isoFromLocal(
 					body.sessionDate,
-					body.times[i],
-					body.offsetMinutes,
+					(body as any).times[i],
+					(body as any).offsetMinutes,
 				);
 				const pr = await c.env.DB.prepare(
 					"INSERT INTO glycemic_curve_points (id,session_id,idx,expected_at,glucose_mgdl,measured_at,warn_minutes_before,created_at,updated_at) VALUES (?1,?2,?3,?4,NULL,NULL,?5,?6,?7)",
@@ -141,19 +140,18 @@ glycemia.post(
 			)
 				.bind(
 					sid,
-					body.petId,
-					body.points[0].expectedAt.slice(0, 10),
-					body.notes ?? null,
+					(body as any).petId,
+					(body as any).points[0].expectedAt.slice(0, 10),
+					(body as any).notes ?? null,
 					ts,
 					ts,
 				)
 				.run();
 			if (!ins.success) return c.json({ error: "db_error" }, 500);
-
-			const warn = body.warnMinutesBefore ?? 10;
+			const warn = (body as any).warnMinutesBefore ?? 10;
 			for (let i = 0; i < 5; i++) {
 				const pid = crypto.randomUUID();
-				const expectedAt = body.points[i].expectedAt;
+				const expectedAt = (body as any).points[i].expectedAt;
 				const pr = await c.env.DB.prepare(
 					"INSERT INTO glycemic_curve_points (id,session_id,idx,expected_at,glucose_mgdl,measured_at,warn_minutes_before,created_at,updated_at) VALUES (?1,?2,?3,?4,NULL,NULL,?5,?6,?7)",
 				)
@@ -229,8 +227,8 @@ glycemia.put(
 		if (!s.results || s.results.length === 0)
 			return c.json({ error: "not_found" }, 404);
 
-		const currentDate = (s.results[0] as any).session_date as string;
-		const sessionDate = body.sessionDate ?? currentDate;
+		const currentDate = (s as any).session_date as string;
+		const sessionDate = (body as any).sessionDate ?? currentDate;
 
 		const up = await c.env.DB.prepare(
 			"UPDATE glycemic_curve_sessions SET session_date = COALESCE(?2, session_date), notes = COALESCE(?3, notes), updated_at = ?4 WHERE id = ?1",
@@ -239,12 +237,12 @@ glycemia.put(
 			.run();
 		if (!up.success) return c.json({ updated: false }, 200);
 
-		if (body.times) {
-			const warnOffset = body.offsetMinutes;
+		if ((body as any).times) {
+			const warnOffset = (body as any).offsetMinutes;
 			for (let i = 0; i < 5; i++) {
 				const expectedAt = isoFromLocal(
 					sessionDate,
-					body.times[i],
+					(body as any).times[i],
 					warnOffset,
 				);
 				const pr = await c.env.DB.prepare(
@@ -279,15 +277,15 @@ glycemia.put(
 			return c.json({ error: "session_not_found" }, 404);
 
 		let expectedIso: string | null = null;
-		if (body.expectedTime) {
-			const sessionDate = (s.results[0] as any).session_date as string;
+		if ((body as any).expectedTime) {
+			const sessionDate = (s as any).session_date as string;
 			expectedIso = isoFromLocal(
 				sessionDate,
-				body.expectedTime,
-				body.offsetMinutes,
+				(body as any).expectedTime,
+				(body as any).offsetMinutes,
 			);
-		} else if (body.expectedAt) {
-			expectedIso = body.expectedAt;
+		} else if ((body as any).expectedAt) {
+			expectedIso = (body as any).expectedAt;
 		}
 		if (!expectedIso) return c.json({ error: "invalid_payload" }, 400);
 

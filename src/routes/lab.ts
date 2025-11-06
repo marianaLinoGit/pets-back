@@ -28,12 +28,12 @@ lab.post(
 			)
 				.bind(
 					id,
-					b.name,
-					b.species ?? "other",
-					b.unit ?? null,
-					b.refLow ?? null,
-					b.refHigh ?? null,
-					b.category ?? null,
+					(b as any).name,
+					(b as any).species ?? "other",
+					(b as any).unit ?? null,
+					(b as any).refLow ?? null,
+					(b as any).refHigh ?? null,
+					(b as any).category ?? null,
 					ts,
 				)
 				.run();
@@ -45,7 +45,7 @@ lab.post(
 					{
 						error: "duplicate",
 						field: "name",
-						species: b.species ?? "other",
+						species: (b as any).species ?? "other",
 					},
 					409,
 				);
@@ -76,12 +76,12 @@ lab.put(
 			)
 				.bind(
 					id,
-					b.name ?? null,
-					b.species ?? null,
-					b.unit ?? null,
-					b.refLow ?? null,
-					b.refHigh ?? null,
-					b.category ?? null,
+					(b as any).name ?? null,
+					(b as any).species ?? null,
+					(b as any).unit ?? null,
+					(b as any).refLow ?? null,
+					(b as any).refHigh ?? null,
+					(b as any).category ?? null,
 					ts,
 				)
 				.run();
@@ -142,17 +142,17 @@ lab.post(
 		)
 			.bind(
 				rid,
-				body.petId,
-				body.collectedAt,
-				body.labName ?? null,
-				body.vetName ?? null,
-				body.notes ?? null,
+				(body as any).petId,
+				(body as any).collectedAt,
+				(body as any).labName ?? null,
+				(body as any).vetName ?? null,
+				(body as any).notes ?? null,
 				ts,
 			)
 			.run();
 		if (!ins.success) return c.json({ error: "db_error" }, 500);
 
-		for (const v of body.values) {
+		for (const v of (body as any).values) {
 			let typeId = (v as any).testTypeId || "";
 			if (!typeId && (v as any).name) {
 				const ex = await c.env.DB.prepare(
@@ -203,7 +203,7 @@ lab.get("/results", async (c) => {
 		.bind(petId, limit, offset)
 		.all();
 	const rows = results.results || [];
-	const out = [] as any[];
+	const out: any[] = [];
 	for (const r of rows as any[]) {
 		const vals = await c.env.DB.prepare(
 			"SELECT v.*, t.name as test_name FROM lab_result_values v JOIN lab_test_types t ON v.test_type_id = t.id WHERE v.result_id = ?1 ORDER BY t.name",
