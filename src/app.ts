@@ -15,7 +15,20 @@ import { vetVisits } from "./routes/vet-visits";
 type Env = { Bindings: { DB: D1Database; API_KEY?: string } };
 
 const app = new Hono<Env>();
-app.use("*", cors());
+app.use(
+	"*",
+	cors({
+		origin: [
+			"https://pet-front.pages.dev",
+			"https://pets.marianalino.com.br",
+		],
+		allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+		allowHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+		exposeHeaders: ["Content-Length", "Content-Type"],
+		credentials: true,
+		maxAge: 86400,
+	}),
+);
 
 app.get("/health", (c) => c.json({ ok: true, time: new Date().toISOString() }));
 
